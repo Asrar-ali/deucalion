@@ -758,14 +758,6 @@ export function Deucalion() {
         )}
 
         <div className="ml-auto flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setView("data")}
-            className="rounded px-2 py-1 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)] hover:underline"
-            style={{ borderRadius: "var(--radius)" }}
-          >
-            Load data
-          </button>
           {spend && !spend.unlimited && (
             <span
               className="tabular-nums text-sm"
