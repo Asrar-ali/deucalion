@@ -9,7 +9,7 @@
  * render the extractive brief when it does. See docs/ARCHITECTURE.md 4.8.
  */
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { generateJson, generateText } from "./llm";
 import { tokenize } from "./prefilter";
 import type { Brief, Category, Cluster, FloodRecord } from "./types";
 
@@ -266,12 +266,12 @@ interface NarrativeInputRecord {
 }
 
 const RESPONSE_SCHEMA = {
-  type: Type.ARRAY,
+  type: "array",
   items: {
-    type: Type.OBJECT,
+    type: "object",
     properties: {
-      sentence: { type: Type.STRING },
-      citedRecordIds: { type: Type.ARRAY, items: { type: Type.STRING } },
+      sentence: { type: "string" },
+      citedRecordIds: { type: "array", items: { type: "string" } },
     },
     required: ["sentence", "citedRecordIds"],
   },
@@ -368,12 +368,6 @@ export function enforceCitations(
   return { kept, dropped };
 }
 
-function geminiClient(): GoogleGenAI | undefined {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return undefined;
-  return new GoogleGenAI({ apiKey });
-}
-
 /**
  * Gemini narrative layered on the extractive clusters. Every sentence must cite the
  * record ids it came from; sentences that don't are dropped, not softened, per
@@ -384,8 +378,6 @@ export async function narrate(
   clusters: Cluster[],
   records: FloodRecord[],
 ): Promise<Brief["narrative"]> {
-  const ai = geminiClient();
-  if (!ai) return undefined;
   if (clusters.length === 0) return [];
 
   const inputRecords = buildNarrativeInputs(clusters, records);
@@ -411,26 +403,16 @@ export async function narrate(
     "only sentences you can support with the given record ids.";
 
   try {
-    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: RESPONSE_SCHEMA,
-      },
-    });
+    // Build the full prompt with system instruction
+    const fullPrompt =
+      systemInstruction + "\n\n" + prompt;
 
-    const text = response.text;
-    if (!text) return undefined; // safety block or empty candidate -- both are "unavailable"
+    const parsed = await generateJson<unknown>(
+      fullPrompt,
+      RESPONSE_SCHEMA,
+    );
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      return undefined; // malformed output
-    }
+    if (!parsed) return undefined; // safety block, network error, or empty candidate
 
     const { kept, dropped } = enforceCitations(parsed, allowedIds);
     if (dropped.length) {
@@ -463,8 +445,6 @@ function extractNumbers(text: string): string[] {
  * plain-language summary that quietly disagrees with the real numbers.
  */
 export async function plainLanguage(brief: string): Promise<string | undefined> {
-  const ai = geminiClient();
-  if (!ai) return undefined;
   if (!brief.trim()) return undefined;
 
   const systemInstruction =
@@ -473,14 +453,11 @@ export async function plainLanguage(brief: string): Promise<string | undefined> 
     "that are not already in the text. Plain text only, no markdown, no headers.";
 
   try {
-    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-    const response = await ai.models.generateContent({
-      model,
-      contents: brief,
-      config: { systemInstruction },
-    });
+    // Build the full prompt with system instruction
+    const fullPrompt =
+      systemInstruction + "\n\n" + brief;
 
-    const text = response.text?.trim();
+    const text = await generateText(fullPrompt);
     if (!text) return undefined;
 
     const required = extractNumbers(brief);
