@@ -1231,6 +1231,7 @@ function BriefPanel({
   onSummarise,
   onDownload,
   onSelectRecord,
+  onPickCluster,
 }: {
   clusters: Cluster[];
   brief: Brief | null;
@@ -1331,16 +1332,24 @@ function BriefPanel({
           {clusters.length > 0 && (
             <ul className="flex flex-col gap-1">
               {clusters.map((cluster) => (
-                <li key={cluster.id} className="flex items-baseline justify-between gap-2 text-sm">
-                  <span style={{ color: "var(--text)" }}>
-                    {cluster.label}
-                    {cluster.terms?.length ? (
-                      <span style={{ color: "var(--text-faint)" }}> · {cluster.terms.join(", ")}</span>
-                    ) : null}
-                  </span>
-                  <span className="font-mono" style={{ color: "var(--text-muted)" }}>
-                    {count(cluster.size)}
-                  </span>
+                <li key={cluster.id}>
+                  {/* A theme opens its posts in Reports; it was static text before. */}
+                  <button
+                    type="button"
+                    onClick={() => onPickCluster(cluster)}
+                    aria-label={`Show the ${count(cluster.size)} posts about ${cluster.label}`}
+                    className="flex w-full items-baseline justify-between gap-2 rounded px-1 py-0.5 text-left text-sm hover:underline"
+                  >
+                    <span style={{ color: "var(--text)" }}>
+                      {cluster.label}
+                      {cluster.terms?.length ? (
+                        <span style={{ color: "var(--text-faint)" }}>: {cluster.terms.join(", ")}</span>
+                      ) : null}
+                    </span>
+                    <span className="font-mono" style={{ color: "var(--text-muted)" }}>
+                      {count(cluster.size)}
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>
