@@ -19,6 +19,7 @@ import {
   X,
 } from "@phosphor-icons/react/dist/ssr";
 
+import gazetteer from "../data/gazetteer.json";
 import { CATEGORY_META, CATEGORY_ORDER, count, pct, usd } from "../lib/display";
 import { demoEventProfile, isDemoMode, replayDemo } from "../lib/demo";
 import { runClassify } from "../lib/stream";
@@ -57,6 +58,10 @@ interface Filters {
   onlyMapped: boolean;
   onlyRequests: boolean;
   community: string | null;
+  /** Hide posts the classifier says are about another hazard (bonus: multi-disaster files). */
+  floodOnly: boolean;
+  /** Set when a summary theme is picked: show exactly that cluster's posts. */
+  cluster: { label: string; ids: Set<string> } | null;
 }
 
 const DEFAULT_FILTERS: Filters = {
@@ -66,7 +71,22 @@ const DEFAULT_FILTERS: Filters = {
   onlyMapped: false,
   onlyRequests: false,
   community: null,
+  floodOnly: false,
+  cluster: null,
 };
+
+/** "What to map": infer the hazard from the corpus, or pin it to flooding before classifying. */
+type Focus = "auto" | "flood";
+
+// profile.places holds matched aliases ("yyc", "calgary"); show each place's real name once.
+const ALIAS_TO_NAME = new Map<string, string>(
+  (gazetteer as { places: Array<{ name: string; aliases?: string[] }> }).places.flatMap((p) =>
+    [p.name.toLowerCase(), ...(p.aliases ?? [])].map((a) => [a.toLowerCase(), p.name] as [string, string]),
+  ),
+);
+function placeNames(aliases: string[]): string[] {
+  return [...new Set(aliases.map((a) => ALIAS_TO_NAME.get(a.toLowerCase())).filter((n): n is string => !!n))];
+}
 
 type Pref = "theme" | "font" | "touch" | "bandwidth";
 
@@ -82,6 +102,7 @@ export function Deucalion() {
   const [ingestInfo, setIngestInfo] = useState<IngestResult | null>(null);
 
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [focus, setFocus] = useState<Focus>("auto");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "severity", desc: true });
 
@@ -204,9 +225,15 @@ export function Deucalion() {
   /** Ingest replaces the working set. Classification then streams labels onto it. */
   const onIngest = useCallback(
     async (result: IngestResult) => {
+      // "Flooding only" pins the hazard before classification, so the relevance question asks
+      // about floods. On a mixed-disaster file the corpus detector picks storm or "other",
+      // and every disaster would then count as relevant.
+      const eventProfile =
+        focus === "flood" ? { ...result.profile, hazard: "flood" as const, userEdited: true } : result.profile;
+      if (focus === "flood") setFilters((f) => ({ ...f, floodOnly: true }));
       setIngestInfo(result);
       setRecords(result.records);
-      setProfile(result.profile);
+      setProfile(eventProfile);
       setFunnel(result.funnel);
       setClusters([]);
       setBrief(null);
@@ -217,7 +244,7 @@ export function Deucalion() {
       const byId = new Map(result.records.map((r) => [r.id, r]));
 
       await runClassify(
-        { records: result.records, profile: result.profile },
+        { records: result.records, profile: eventProfile },
         {
           onRecordBatch: (batch) => {
             for (const r of batch) byId.set(r.id, r);
@@ -259,7 +286,7 @@ export function Deucalion() {
       setBusy(false);
       setProgress(null);
     },
-    [notify],
+    [notify, focus],
   );
 
   /** Summaries are requested explicitly. The narrative costs quota; the clusters do not. */
@@ -334,6 +361,8 @@ export function Deucalion() {
       if ((r.labels.relevant?.confidence ?? 0) < filters.minConfidence) return false;
       if (filters.onlyMapped && !r.places.length) return false;
       if (filters.onlyRequests && !r.labels.is_request?.value) return false;
+      if (filters.floodOnly && r.labels.hazard && r.labels.hazard.value !== "flood") return false;
+      if (filters.cluster && !filters.cluster.ids.has(r.id)) return false;
       if (filters.community && !r.places.some((p) => p.community?.name === filters.community)) return false;
       if (q && !r.text.toLowerCase().includes(q)) return false;
       return true;
@@ -374,10 +403,10 @@ export function Deucalion() {
         </div>
 
         {profile && (
-          <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-            Detected event:{" "}
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            {profile.userEdited ? "Mapping:" : "Detected event:"}{" "}
             <strong style={{ color: "var(--text)" }}>{profile.hazard}</strong>
-            {profile.places.length > 0 && <> near {profile.places.slice(0, 3).join(", ")}</>}
+            {placeNames(profile.places).length > 0 && <> near {placeNames(profile.places).slice(0, 3).join(", ")}</>}
           </p>
         )}
 
@@ -436,6 +465,26 @@ export function Deucalion() {
           className="w-full shrink-0 border-b lg:w-72 lg:border-b-0 lg:border-r"
           style={{ borderColor: "var(--line)" }}
         >
+          <div className="border-b px-3 py-2" style={{ borderColor: "var(--line)" }}>
+            <label htmlFor="focus" className="block text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+              What to map
+            </label>
+            <select
+              id="focus"
+              value={focus}
+              onChange={(e) => setFocus(e.target.value as Focus)}
+              disabled={busy}
+              className="mt-1 w-full rounded px-2 py-1.5 text-sm"
+              style={{ border: "1px solid var(--line-strong)", background: "var(--surface-raised)", color: "var(--text)" }}
+            >
+              <option value="auto">Detect the disaster from the posts</option>
+              <option value="flood">Flooding only (for files with many disaster types)</option>
+            </select>
+            <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+              Choose before loading. Flooding only asks the classifier about floods and hides
+              posts about other hazards.
+            </p>
+          </div>
           <Intake onIngest={onIngest} onError={notify} busy={busy} lowBandwidth={lowBandwidth} />
 
           {ingestInfo?.detectedColumns?.length ? (
@@ -465,15 +514,8 @@ export function Deucalion() {
               onSummarise={summarise}
               onDownload={download}
               onPickCluster={(cluster) =>
-                setFilters((f) => ({
-                  ...f,
-                  categories: new Set(
-                    CATEGORY_ORDER.filter(
-                      (c) => CATEGORY_META[c].label.toLowerCase() === cluster.label.toLowerCase() || true,
-                    ),
-                  ),
-                  query: "",
-                }))
+                // Was a no-op (`|| true` kept every category). Show exactly the theme's posts.
+                setFilters((f) => ({ ...f, cluster: { label: cluster.label, ids: new Set(cluster.recordIds) } }))
               }
             />
           )}
@@ -503,6 +545,14 @@ export function Deucalion() {
                 (same data as the map, in text)
               </span>
             </h2>
+            {filters.cluster && (
+              <p className="flex items-center gap-2 text-sm" style={{ color: "var(--text)" }}>
+                Theme: {filters.cluster.label}
+                <button type="button" className="underline" onClick={() => setFilters((f) => ({ ...f, cluster: null }))}>
+                  Clear
+                </button>
+              </p>
+            )}
             <CategoryLegend />
           </div>
 
@@ -757,6 +807,14 @@ function FilterPanel({
             onChange={(e) => setFilters((f) => ({ ...f, onlyRequests: e.target.checked }))}
           />
           <span style={{ color: "var(--text)" }}>Only requests for help</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={filters.floodOnly}
+            onChange={(e) => setFilters((f) => ({ ...f, floodOnly: e.target.checked }))}
+          />
+          <span style={{ color: "var(--text)" }}>Only posts about flooding</span>
         </label>
       </div>
 
