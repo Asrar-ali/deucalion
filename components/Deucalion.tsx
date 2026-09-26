@@ -424,17 +424,19 @@ export function Deucalion() {
               {usd(spend.used)}
             </span>
           )}
-          <PrefToggle on={dark} onClick={() => setDark((v) => !v)} label="Dark theme" icon={<Eye size={14} />} />
+          <PrefToggle on={dark} onClick={() => setDark((v) => !v)} label="Dark theme" short="Dark" icon={<Eye size={14} />} />
           <PrefToggle
             on={legible}
             onClick={() => setLegible((v) => !v)}
             label="Atkinson Hyperlegible font, designed for low vision"
+            short="Legible font"
             icon={<TextAa size={14} />}
           />
           <PrefToggle
             on={lowBandwidth}
             onClick={() => setLowBandwidth((v) => !v)}
             label="Low bandwidth mode: drops map tiles and images, disables dictation"
+            short="Low data"
             icon={<WifiSlash size={14} />}
           />
         </div>
@@ -688,11 +690,14 @@ function PrefToggle({
   onClick,
   label,
   icon,
+  short,
 }: {
   on: boolean;
   onClick: () => void;
   label: string;
   icon: React.ReactNode;
+  /** Visible text: an icon plus a title is invisible to a sighted keyboard user. */
+  short?: string;
 }) {
   return (
     <button
@@ -701,7 +706,7 @@ function PrefToggle({
       aria-pressed={on}
       aria-label={label}
       title={label}
-      className="rounded p-1.5"
+      className="inline-flex items-center gap-1 rounded p-1.5"
       style={{
         background: on ? "var(--accent-weak)" : "transparent",
         color: on ? "var(--accent)" : "var(--text-faint)",
@@ -709,6 +714,7 @@ function PrefToggle({
       }}
     >
       {icon}
+      {short && <span className="hidden text-sm sm:inline">{short}</span>}
     </button>
   );
 }
