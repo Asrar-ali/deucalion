@@ -501,7 +501,6 @@ export function FloodMap({
     fitCount.current = points.length;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const wide = container.current.clientWidth > 700;
-    instance.resize();
     instance.fitBounds(fitBoundsOf(points), {
       padding: { top: 56, bottom: 56, left: 56, right: wide ? 64 : 56 },
       maxZoom: 11,
@@ -514,9 +513,27 @@ export function FloodMap({
   useEffect(() => {
     const el = container.current;
     if (!el || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => fitToData.current());
+    // resize() must run on every container-size change, not only while fitToData is still
+    // allowed to move the camera. A phone's browser chrome collapsing during a pinch gesture
+    // resizes this container; once the user has touched the map (userMoved becomes true),
+    // fitToData returns early and resize() was never reached, leaving MapLibre painting into a
+    // canvas sized for the old viewport -- a blank strip or a misaligned map on mobile.
+    const ro = new ResizeObserver(() => {
+      map.current?.resize();
+      fitToData.current();
+    });
     ro.observe(el);
-    return () => ro.disconnect();
+    // Belt and suspenders: some mobile browsers change the visible viewport (URL bar
+    // collapsing, on-screen keyboard, rotation) without the map container's own box changing
+    // size enough for ResizeObserver to fire promptly.
+    const onViewportResize = () => map.current?.resize();
+    window.visualViewport?.addEventListener("resize", onViewportResize);
+    window.addEventListener("orientationchange", onViewportResize);
+    return () => {
+      ro.disconnect();
+      window.visualViewport?.removeEventListener("resize", onViewportResize);
+      window.removeEventListener("orientationchange", onViewportResize);
+    };
   }, []);
 
   // Relabel the reserve layer whenever the record set changes -- the count is how many of the
