@@ -1,4 +1,4 @@
-# Living Flood Map — Architecture & Design Spec
+# Deucalion — Architecture & Design Spec
 
 **Team Prometheus** (2 builders) · Thunder Bay AI Hackathon, 2026-09-26
 **Challenge sponsor:** CE Strategies · **Status:** approved design, build in progress

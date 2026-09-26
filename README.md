@@ -1,7 +1,9 @@
-# Living Flood Map
+# Deucalion
 
 **Team Prometheus** · Thunder Bay AI Hackathon, 26 September 2026
 **Challenge sponsor:** CE Strategies
+
+*the living flood map*
 
 Firsthand public posts about a flood, turned into an auditable, mappable, accessible situational
 picture — and handed to the GIS system a community already uses.
