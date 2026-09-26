@@ -206,6 +206,26 @@ body {
 :root[data-touch="large"] label:has(> input[type="radio"]) {
   min-height: 44px;
 }
+/*
+  The map credits button (i) draws its icon as a repeating background. Large touch made it
+  44px tall but left it 24px wide, so a second "i" tiled below the first and was cut off by the
+  map edge. One centred icon, and a real 44x44 target.
+*/
+.maplibregl-ctrl-attrib-button {
+  background-repeat: no-repeat;
+  background-position: center;
+}
+:root[data-touch="large"] .maplibregl-ctrl-attrib-button {
+  width: 44px;
+  height: 44px;
+}
+/* The credits box must grow with its button, or the 44px button hangs past the map edge. */
+:root[data-touch="large"] .maplibregl-ctrl-attrib.maplibregl-compact {
+  min-height: 44px;
+  padding-right: 44px;
+  display: flex;
+  align-items: center;
+}
 :root[data-touch="large"] .maplibregl-ctrl-group button {
   width: 44px;
   height: 44px;
