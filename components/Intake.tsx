@@ -235,7 +235,7 @@ export function Intake({
   const disabled = busy || working !== null;
 
   return (
-    <section aria-labelledby="intake-heading" className="flex flex-col gap-3 p-3">
+    <section aria-labelledby="intake-heading" className="flex flex-col gap-3 p-4">
       <h2 id="intake-heading" className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
         Add reports
       </h2>
@@ -244,7 +244,7 @@ export function Intake({
         type="button"
         onClick={loadSample}
         disabled={disabled}
-        className="flex items-center justify-center gap-2 rounded px-3 py-2 text-sm font-medium transition-opacity disabled:opacity-50"
+        className="flex items-center justify-center gap-2 rounded px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-50"
         style={{ background: "var(--accent)", color: "var(--accent-text)", borderRadius: "var(--radius)" }}
       >
         {working === "sample" ? <Spinner size={15} className="animate-spin" aria-hidden /> : <Play size={15} weight="fill" aria-hidden />}

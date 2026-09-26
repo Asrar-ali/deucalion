@@ -68,7 +68,7 @@ export function FunnelStrip({
         {stages.map((stage, i) => (
           <li
             key={stage.key}
-            className="flex-1 min-w-[104px] border-r px-3 py-2 last:border-r-0"
+            className="flex-1 min-w-[104px] border-r px-4 py-2 last:border-r-0"
             style={{ borderColor: "var(--line)" }}
             title={stage.hint}
           >
@@ -103,7 +103,7 @@ export function FunnelStrip({
 
       {/* The stage meanings were only in hover titles; this makes them reachable by keyboard
           and touch as well (ACCESSIBILITY.md: nothing hover-only). */}
-      <details className="border-t px-3 py-1 text-sm" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
+      <details className="border-t px-4 py-1 text-sm" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
         <summary className="cursor-pointer">What do these numbers mean?</summary>
         <dl className="mt-1 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 pb-1">
           {stages.map((stage) => (
@@ -118,7 +118,7 @@ export function FunnelStrip({
       {/* The honest counter. Deliberately given the same visual weight as the funnel itself. */}
       {(funnel.noPlaceMentioned > 0 || funnel.rejectedRows.length > 0) && (
         <div
-          className="flex flex-wrap gap-x-5 gap-y-1 px-3 py-1.5 text-sm"
+          className="flex flex-wrap gap-x-5 gap-y-1 px-4 py-1.5 text-sm"
           style={{ background: "var(--surface-sunken)", color: "var(--text-muted)" }}
         >
           {funnel.noPlaceMentioned > 0 && (
@@ -152,7 +152,7 @@ export function FunnelStrip({
 
       {progress && progress.total > 0 && progress.done < progress.total && (
         <div
-          className="px-3 py-1 text-sm"
+          className="px-4 py-1 text-sm"
           style={{ background: "var(--accent-weak)", color: "var(--accent)" }}
           aria-live="polite"
           aria-atomic="true"

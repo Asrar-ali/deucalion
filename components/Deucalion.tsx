@@ -35,6 +35,15 @@ import type {
 import { FunnelStrip } from "./FunnelStrip";
 import { Intake, type IngestResult } from "./Intake";
 import { CategoryLegend, RecordsTable, type SortKey } from "./RecordsTable";
+import { RecordDetail, type ReviewAction } from "./RecordDetail";
+
+const HAZARD_NOUN: Record<string, string> = {
+  flood: "the flood",
+  fire: "the wildfire",
+  quake: "the earthquake",
+  storm: "the storm",
+  other: "the event",
+};
 
 /** The one key this app has ever written to localStorage. Kept in one place so the wipe
  * control and the preference loader cannot drift apart. */
@@ -104,6 +113,8 @@ export function Deucalion() {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [focus, setFocus] = useState<Focus>("auto");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /** Append-only record of human review decisions: the audit artifact. Never sent anywhere. */
+  const [reviewLog, setReviewLog] = useState<Array<{ id: string; action: ReviewAction; at: string }>>([]);
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "severity", desc: true });
 
   const [clusters, setClusters] = useState<Cluster[]>([]);
@@ -405,11 +416,30 @@ export function Deucalion() {
   }, [records, filters]);
 
   const relevantCount = records.filter((r) => r.labels.relevant?.value).length;
+  const selected = useMemo(
+    () => (selectedId ? records.find((r) => r.id === selectedId) ?? null : null),
+    [records, selectedId],
+  );
+
+  const onReview = (id: string, action: ReviewAction) => {
+    setRecords((prev) => prev.map((r) => (r.id === id ? { ...r, review: action } : r)));
+    setReviewLog((prev) => [...prev, { id, action, at: new Date().toISOString() }]);
+  };
+
+  const downloadReviewLog = () => {
+    const blob = new Blob([JSON.stringify(reviewLog, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "deucalion-review-log.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "var(--surface)" }}>
       <header
-        className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-3 py-2"
+        className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2"
         style={{ borderColor: "var(--line)" }}
       >
         <div className="flex items-baseline gap-2">
@@ -478,7 +508,7 @@ export function Deucalion() {
           {notices.map((notice) => (
             <div
               key={notice}
-              className="flex items-start gap-2 px-3 py-1.5 text-sm"
+              className="flex items-start gap-2 px-4 py-1.5 text-sm"
               style={{ background: "var(--review-weak)", color: "var(--review)" }}
             >
               <Warning size={13} className="mt-0.5 shrink-0" aria-hidden />
@@ -502,7 +532,7 @@ export function Deucalion() {
           className="w-full shrink-0 border-b lg:w-72 lg:border-b-0 lg:border-r"
           style={{ borderColor: "var(--line)" }}
         >
-          <div className="border-b px-3 py-2" style={{ borderColor: "var(--line)" }}>
+          <div className="border-b px-4 py-2" style={{ borderColor: "var(--line)" }}>
             <label htmlFor="focus" className="block text-sm font-medium" style={{ color: "var(--text-muted)" }}>
               What to map
             </label>
@@ -533,7 +563,7 @@ export function Deucalion() {
           />
 
           {ingestInfo?.detectedColumns?.length ? (
-            <div className="border-t px-3 py-2 text-sm" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
+            <div className="border-t px-4 py-2 text-sm" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
               Read column{" "}
               <code style={{ color: "var(--text)" }}>{ingestInfo.chosenColumn}</code> from{" "}
               {ingestInfo.detectedColumns.length} column
@@ -567,7 +597,22 @@ export function Deucalion() {
           )}
         </aside>
 
-        <div className="flex min-h-[60vh] flex-1 flex-col">
+        <div className="relative flex min-h-[60vh] min-w-0 flex-1 flex-col">
+          {/* One post and how it got here: demo beat "every point tells you how it got here".
+              Overlays the right of the map on desktop, sits under the map on a phone. */}
+          {selected && (
+            <div
+              className="z-10 border-b lg:absolute lg:right-0 lg:top-0 lg:h-[52vh] lg:w-[400px] lg:overflow-y-auto lg:border-b-0 lg:border-l"
+              style={{ borderColor: "var(--line)", background: "var(--surface-raised)" }}
+            >
+              <RecordDetail
+                record={selected}
+                hazardNoun={HAZARD_NOUN[profile?.hazard ?? "other"] ?? "the event"}
+                onClose={() => setSelectedId(null)}
+                onReview={onReview}
+              />
+            </div>
+          )}
           <div className="h-[46vh] min-h-[280px] border-b lg:h-[52vh]" style={{ borderColor: "var(--line)" }}>
             {lowBandwidth && !records.length ? (
               <div className="grid h-full place-items-center px-6 text-center text-xs" style={{ color: "var(--text-faint)" }}>
@@ -584,7 +629,7 @@ export function Deucalion() {
             )}
           </div>
 
-          <div className="flex items-center justify-between border-b px-3 py-1" style={{ borderColor: "var(--line)" }}>
+          <div className="flex items-center justify-between border-b px-4 py-1" style={{ borderColor: "var(--line)" }}>
             <h2 className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
               {count(visible.length)} report{visible.length === 1 ? "" : "s"}{" "}
               <span style={{ color: "var(--text-faint)" }}>
@@ -614,7 +659,7 @@ export function Deucalion() {
       </main>
 
       <footer
-        className="flex flex-col gap-2 border-t px-3 py-2 text-sm"
+        className="flex flex-col gap-2 border-t px-4 py-2 text-sm"
         style={{ borderColor: "var(--line)", color: "var(--text-faint)" }}
       >
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -623,6 +668,11 @@ export function Deucalion() {
             the server.
           </span>
           {modelVersion && <span className="font-mono">{modelVersion}</span>}
+          {reviewLog.length > 0 && (
+            <button type="button" onClick={downloadReviewLog} className="underline" style={{ color: "var(--text-muted)" }}>
+              Download review log ({reviewLog.length})
+            </button>
+          )}
           <Link href="/accessibility" className="underline" style={{ color: "var(--text-muted)" }}>
             Accessibility statement
           </Link>
@@ -772,7 +822,7 @@ function FilterPanel({
     });
 
   return (
-    <section aria-labelledby="filters-heading" className="flex flex-col gap-3 border-t p-3" style={{ borderColor: "var(--line)" }}>
+    <section aria-labelledby="filters-heading" className="flex flex-col gap-3 border-t p-4" style={{ borderColor: "var(--line)" }}>
       <div className="flex items-baseline justify-between">
         <h2 id="filters-heading" className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
           Filter
@@ -922,7 +972,7 @@ function BriefPanel({
   };
 
   return (
-    <section aria-labelledby="brief-heading" className="flex flex-col gap-2 border-t p-3" style={{ borderColor: "var(--line)" }}>
+    <section aria-labelledby="brief-heading" className="flex flex-col gap-2 border-t p-4" style={{ borderColor: "var(--line)" }}>
       <h2 id="brief-heading" className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
         Situation
       </h2>
