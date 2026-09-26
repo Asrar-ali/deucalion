@@ -10,12 +10,19 @@
  * docs/ACCESSIBILITY.md) -- that is the text equivalent, not a lesser fallback.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 // Namespace import: maplibre-gl ships no default export, so `import maplibregl from` fails.
 import * as maplibregl from "maplibre-gl";
 import type { GeoJSONSource, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 
 import type { Category, FloodRecord } from "../lib/types";
+
+// MapLibre 6 resolves its worker relative to import.meta.url, which the bundler rewrites into
+// /_next/static/chunks/ without emitting the worker there. scripts/copy-maplibre-worker.mjs
+// serves it from public/maplibre/ instead; without this line the map is blank.
+if (typeof window !== "undefined") {
+  maplibregl.setWorkerUrl(new URL("/maplibre/maplibre-gl-worker.mjs", window.location.origin).href);
+}
 
 const CARTO_LIGHT = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 const CARTO_DARK = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
@@ -105,8 +112,13 @@ export function FloodMap({
   const map = useRef<MapLibreMap | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  // The style URL currently applied, so the swap effect only calls setStyle on a real change.
+  const appliedStyle = useRef<string | StyleSpecification | null>(null);
 
-  const points = toPoints(records);
+  // Memoised: a fresh array every render re-ran the data and camera effects on every render.
+  const points = useMemo(() => toPoints(records), [records]);
+  const latestPoints = useRef(points);
+  latestPoints.current = points;
 
   // Create the map once. Re-creating it on every style change would reset the viewport and
   // throw away the user's pan and zoom, which is infuriating mid-triage.
@@ -132,7 +144,11 @@ export function FloodMap({
     instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     instance.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
-    instance.on("load", () => {
+    appliedStyle.current = lowBandwidth ? BLANK_STYLE : dark ? CARTO_DARK : CARTO_LIGHT;
+
+    // Every setStyle drops our sources and layers, and "load" fires only once, so rebuild on
+    // "style.load", which fires for the initial style and after every swap.
+    instance.on("style.load", () => {
       instance.addSource("reports", {
         type: "geojson",
         data: toGeoJson([]),
@@ -210,6 +226,12 @@ export function FloodMap({
         },
       });
 
+      (instance.getSource("reports") as GeoJSONSource).setData(toGeoJson(latestPoints.current));
+      setReady(true);
+    });
+
+    // Handlers are bound by layer id, so they survive style swaps. Bind them once.
+    {
       instance.on("click", "points", (e) => {
         const id = e.features?.[0]?.properties?.id;
         if (typeof id === "string") onSelect(id);
@@ -236,16 +258,14 @@ export function FloodMap({
         if (!props) return;
         popup
           .setLngLat((e.features![0].geometry as GeoJSON.Point).coordinates as [number, number])
-          .setText(`${String(props.label)} — ${Math.round(Number(props.confidence) * 100)}% confidence`)
+          .setText(`${String(props.label)}, ${Math.round(Number(props.confidence) * 100)}% confidence`)
           .addTo(instance);
       });
       instance.on("mouseleave", "points", () => {
         instance.getCanvas().style.cursor = "";
         popup.remove();
       });
-
-      setReady(true);
-    });
+    }
 
     instance.on("error", () => {
       // A failed tile fetch must not blank the app. The points layer still renders.
@@ -264,14 +284,15 @@ export function FloodMap({
   // Swap the basemap when the theme or bandwidth mode changes, keeping camera and data.
   useEffect(() => {
     const instance = map.current;
-    if (!instance || !ready) return;
-    instance.setStyle(lowBandwidth ? BLANK_STYLE : dark ? CARTO_DARK : CARTO_LIGHT, {
-      diff: false,
-    });
-    // setStyle with diff:false drops our sources and layers, so they are rebuilt on the next
-    // styledata event. Cheaper and far less error-prone than diffing MapLibre style objects.
-    instance.once("styledata", () => setReady(false));
-  }, [dark, lowBandwidth, ready]);
+    if (!instance) return;
+    const next = lowBandwidth ? BLANK_STYLE : dark ? CARTO_DARK : CARTO_LIGHT;
+    if (appliedStyle.current === next) return;
+    appliedStyle.current = next;
+    // diff:false drops our sources and layers; the style.load handler rebuilds them. Until it
+    // does, ready is false so no effect touches a layer that does not exist.
+    setReady(false);
+    instance.setStyle(next, { diff: false });
+  }, [dark, lowBandwidth]);
 
   // Push data whenever the filtered record set changes.
   useEffect(() => {
