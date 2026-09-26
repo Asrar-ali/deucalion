@@ -9,7 +9,7 @@
  * tool that only works for sighted mouse users is not finished. See docs/ACCESSIBILITY.md.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CaretDown, CaretUp, Image as ImageIcon, Link as LinkIcon, Microphone, Table } from "@phosphor-icons/react/dist/ssr";
 
 import { CATEGORY_META, count, severityBand } from "../lib/display";
@@ -59,6 +59,13 @@ export function RecordsTable({
   // plots everything, and the count below says plainly how many rows are not yet shown.
   const PAGE = 200;
   const [limit, setLimit] = useState(PAGE);
+
+  // An empty set means a new dataset is loading (or everything was wiped); without this a
+  // previous "Show all" would keep the huge window for the next file.
+  const empty = records.length === 0;
+  useEffect(() => {
+    if (empty) setLimit(PAGE);
+  }, [empty]);
 
   const sorted = useMemo(() => {
     const dir = sort.desc ? -1 : 1;
@@ -303,33 +310,51 @@ export function RecordsTable({
         </tbody>
       </table>
 
-      {sorted.length > limit && (
+      {sorted.length > PAGE && (
         <div
           className="flex flex-wrap items-center gap-3 px-3 py-3 text-sm"
           style={{ borderTop: "1px solid var(--line)", color: "var(--text-muted)" }}
         >
-          {/* aria-live so a screen reader hears the new count after pressing a button. */}
-          <span aria-live="polite">
-            Showing {count(Math.min(limit, sorted.length))} of {count(sorted.length)} reports, in the
-            current sort order. The map shows all of them.
-          </span>
-          <button
-            type="button"
-            onClick={() => setLimit((n) => n + PAGE)}
-            className="rounded px-2.5 py-1"
-            style={{ border: "1px solid var(--line-strong)", color: "var(--text)", borderRadius: "var(--radius)" }}
-          >
-            Show {count(Math.min(PAGE, sorted.length - limit))} more
-          </button>
-          <button
-            type="button"
-            onClick={() => setLimit(sorted.length)}
-            className="rounded px-2.5 py-1"
-            style={{ border: "1px solid var(--line)", color: "var(--text-muted)", borderRadius: "var(--radius)" }}
-            title="Rendering thousands of rows can be slow. Use Export for the full data."
-          >
-            Show all
-          </button>
+          {/* The footer stays mounted once it has appeared: unmounting the pressed button drops
+              keyboard focus to body, and unmounting the live region loses the final count. */}
+          {limit >= sorted.length ? (
+            <>
+              <span aria-live="polite">Showing all {count(sorted.length)} reports.</span>
+              <button
+                type="button"
+                onClick={() => setLimit(PAGE)}
+                className="rounded px-2.5 py-1"
+                style={{ border: "1px solid var(--line-strong)", color: "var(--text)", borderRadius: "var(--radius)" }}
+              >
+                Show first {count(PAGE)} only
+              </button>
+            </>
+          ) : (
+            <>
+              {/* aria-live so a screen reader hears the new count after pressing a button. */}
+              <span aria-live="polite">
+                Showing {count(Math.min(limit, sorted.length))} of {count(sorted.length)} reports, in the
+                current sort order. The map shows all of them.
+              </span>
+              <button
+                type="button"
+                onClick={() => setLimit((n) => n + PAGE)}
+                className="rounded px-2.5 py-1"
+                style={{ border: "1px solid var(--line-strong)", color: "var(--text)", borderRadius: "var(--radius)" }}
+              >
+                Show {count(Math.min(PAGE, sorted.length - limit))} more
+              </button>
+              <button
+                type="button"
+                onClick={() => setLimit(sorted.length)}
+                className="rounded px-2.5 py-1"
+                style={{ border: "1px solid var(--line)", color: "var(--text-muted)", borderRadius: "var(--radius)" }}
+                title="Rendering thousands of rows can be slow. Use Export for the full data."
+              >
+                Show all
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

@@ -44,6 +44,8 @@ interface SpeechRecognitionLike {
   onend: (() => void) | null;
 }
 
+const DEFAULT_SAMPLE_PATH = "/sample/alberta-2013.csv";
+
 export function Intake({
   onIngest,
   onError,
@@ -83,9 +85,12 @@ export function Intake({
     }
   };
 
-  const loadSample = async (path = "/sample/alberta-2013.csv", name = "alberta-2013.csv") => {
+  const loadSample = async (path = DEFAULT_SAMPLE_PATH, name = "alberta-2013.csv") => {
     if (onDemoLoad) {
-      onDemoLoad();
+      // Only the Alberta sample has bundled fixtures; replaying them for the world feed would
+      // look like it worked while showing the wrong data.
+      if (path === DEFAULT_SAMPLE_PATH) onDemoLoad();
+      else onError(DEMO_UPLOAD_MESSAGE);
       return;
     }
     setWorking("sample");
