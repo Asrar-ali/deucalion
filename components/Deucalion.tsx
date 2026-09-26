@@ -1692,12 +1692,31 @@ function BriefPanel({
   onSelectRecord: (id: string) => void;
 }) {
   const [plain, setPlain] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+
+  // Cancel on unmount so leaving the Summary page (or the page itself) does not leave the
+  // browser talking with nothing on screen to stop it from.
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    };
+  }, []);
 
   const speak = () => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
     const text = plain && brief?.plainLanguage ? brief.plainLanguage : brief?.extractive;
-    if (!text || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (!text) return;
     window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => setSpeaking(false);
+    setSpeaking(true);
+    window.speechSynthesis.speak(utterance);
   };
 
   return (
@@ -1747,10 +1766,11 @@ function BriefPanel({
             <button
               type="button"
               onClick={speak}
+              aria-pressed={speaking}
               className="rounded border border-[var(--line-strong)] bg-[var(--surface-raised)] px-2 py-1 text-sm hover:bg-[var(--surface-sunken)]"
               style={{ color: "var(--text-muted)", borderRadius: "var(--radius)" }}
             >
-              Read aloud
+              {speaking ? "Stop reading" : "Read aloud"}
             </button>
           </div>
 
