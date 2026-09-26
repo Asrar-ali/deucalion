@@ -165,6 +165,27 @@
     {"name":"Bangkok, Thailand","aliases":["bangkok"],"lat":13.7563,"lon":100.5018,"kind":"city","admin":"","country":"TH"},
     {"name":"Thailand","aliases":["thailand"],"lat":15.87,"lon":100.9925,"kind":"region","admin":"","country":"TH"},
     {"name":"India","aliases":["india"],"lat":20.5937,"lon":78.9629,"kind":"region","admin":"","country":"IN"},
-    {"name":"Pakistan","aliases":["pakistan"],"lat":30.3753,"lon":69.3451,"kind":"region","admin":"","country":"PK"}
+    {"name":"Pakistan","aliases":["pakistan"],"lat":30.3753,"lon":69.3451,"kind":"region","admin":"","country":"PK"},
+    {"name":"Lake St. Martin First Nation","aliases":["lake st martin","lake saint martin"],"lat":51.748,"lon":-98.4357,"kind":"reserve","admin":"MB","country":"CA","isFirstNation":true,"community":"Lake St. Martin First Nation"},
+    {"name":"Little Saskatchewan First Nation","aliases":["little saskatchewan"],"lat":51.6808,"lon":-98.6438,"kind":"reserve","admin":"MB","country":"CA","isFirstNation":true,"community":"Little Saskatchewan First Nation"},
+    {"name":"Dauphin River First Nation","aliases":["dauphin river"],"lat":51.9553,"lon":-98.0578,"kind":"reserve","admin":"MB","country":"CA","isFirstNation":true,"community":"Dauphin River First Nation"},
+    {"name":"Pinaymootang First Nation","aliases":["pinaymootang","fairford"],"lat":51.5986,"lon":-98.6922,"kind":"reserve","admin":"MB","country":"CA","isFirstNation":true,"community":"Pinaymootang First Nation"},
+    {"name":"Moose Cree First Nation","aliases":["moose cree","moose factory","factory island"],"lat":51.2692,"lon":-80.5931,"kind":"reserve","admin":"ON","country":"CA","isFirstNation":true,"community":"Moose Cree First Nation"},
+    {"name":"Cumberland House Cree Nation","aliases":["cumberland house","cumberland house cree nation"],"lat":53.9419,"lon":-102.2849,"kind":"reserve","admin":"SK","country":"CA","isFirstNation":true,"community":"Cumberland House Cree Nation"},
+    {"name":"Sumas First Nation","aliases":["sumas first nation","kilgard"],"lat":49.0553,"lon":-122.1946,"kind":"reserve","admin":"BC","country":"CA","isFirstNation":true,"community":"Sumas First Nation"},
+    {"name":"Lytton First Nation","aliases":["lytton first nation"],"lat":50.2311,"lon":-121.5814,"kind":"reserve","admin":"BC","country":"CA","isFirstNation":true,"community":"Lytton First Nation"},
+    {"name":"Shackan First Nation","aliases":["shackan"],"lat":50.2934,"lon":-121.1754,"kind":"reserve","admin":"BC","country":"CA","isFirstNation":true,"community":"Shackan First Nation"},
+    {"name":"Siska First Nation","aliases":["siska"],"lat":50.1363,"lon":-121.5716,"kind":"reserve","admin":"BC","country":"CA","isFirstNation":true,"community":"Siska First Nation"},
+    {"name":"Boston Bar First Nation","aliases":["boston bar first nation"],"lat":49.877,"lon":-121.4514,"kind":"reserve","admin":"BC","country":"CA","isFirstNation":true,"community":"Boston Bar First Nation"},
+    {"name":"Kahnawake","aliases":["kahnawake","kahnawake mohawk territory"],"lat":45.4167,"lon":-73.6833,"kind":"reserve","admin":"QC","country":"CA","isFirstNation":true,"community":"Kahnawake"},
+    {"name":"Lac Simon Anishnabe Nation","aliases":["lac simon","lac simon anicinape"],"lat":48.0558,"lon":-77.3583,"kind":"reserve","admin":"QC","country":"CA","isFirstNation":true,"community":"Lac Simon Anishnabe Nation"},
+    {"name":"Tobique First Nation","aliases":["tobique","neqotkuk"],"lat":46.8,"lon":-67.6,"kind":"reserve","admin":"NB","country":"CA","isFirstNation":true,"community":"Tobique First Nation"},
+    {"name":"Kingsclear First Nation","aliases":["kingsclear"],"lat":45.8833,"lon":-66.9075,"kind":"reserve","admin":"NB","country":"CA","isFirstNation":true,"community":"Kingsclear First Nation"},
+    {"name":"Woodstock First Nation","aliases":["woodstock first nation"],"lat":46.1093,"lon":-67.5773,"kind":"reserve","admin":"NB","country":"CA","isFirstNation":true,"community":"Woodstock First Nation"},
+    {"name":"Madawaska Maliseet First Nation","aliases":["madawaska maliseet","st basile 10"],"lat":47.4,"lon":-68.3,"kind":"reserve","admin":"NB","country":"CA","isFirstNation":true,"community":"Madawaska Maliseet First Nation"},
+    {"name":"Aklavik","aliases":["aklavik"],"lat":68.2203,"lon":-135.0117,"kind":"reserve","admin":"NT","country":"CA","isFirstNation":true,"community":"Aklavik"},
+    {"name":"Tetlit Gwich'in (Fort McPherson)","aliases":["fort mcpherson","tetlit gwichin"],"lat":67.4353,"lon":-134.8825,"kind":"reserve","admin":"NT","country":"CA","isFirstNation":true,"community":"Tetlit Gwich'in (Fort McPherson)"},
+    {"name":"Katl'odeeche First Nation","aliases":["katlodeeche","hay river dene","hay river reserve"],"lat":60.8336,"lon":-115.7658,"kind":"reserve","admin":"NT","country":"CA","isFirstNation":true,"community":"Katl'odeeche First Nation"},
+    {"name":"Old Crow (Vuntut Gwitchin First Nation)","aliases":["old crow","vuntut gwitchin"],"lat":67.5686,"lon":-139.8353,"kind":"reserve","admin":"YT","country":"CA","isFirstNation":true,"community":"Vuntut Gwitchin First Nation"}
   ]
 }
