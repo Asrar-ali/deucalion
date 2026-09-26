@@ -10,6 +10,8 @@
  */
 
 import { blockedMessage, checkBudget, recordDailySpend, spendCookie } from "../../../lib/budget";
+import { readImageMeta } from "../../../lib/exif";
+import { describeImage, readImageText } from "../../../lib/vision";
 import { geoparse } from "../../../lib/geoparse";
 import { prefilter, scoreRelevance } from "../../../lib/prefilter";
 import { buildQuestions, CONFIDENCE_GATE, deriveRelevance } from "../../../lib/questions";
@@ -38,6 +40,24 @@ interface ClassifyBody {
   profile: EventProfile;
   byoKey?: string;
   accessCode?: string;
+}
+
+/**
+ * Ingest hands images over as data URLs so the client can render them and re-post them
+ * without us storing anything. Returns null on anything malformed rather than throwing,
+ * because a corrupt upload must degrade to "no vision" and not kill the whole stream.
+ */
+function decodeDataUrl(ref: string | undefined): { bytes: Buffer; mimeType: string } | null {
+  if (!ref) return null;
+  // [\s\S] rather than the dotAll flag: this project targets an ES level where /s is not
+  // available, and base64 of a real photo is long enough to contain newlines.
+  const match = /^data:([^;,]+);base64,([\s\S]+)$/.exec(ref);
+  if (!match) return null;
+  try {
+    return { mimeType: match[1], bytes: Buffer.from(match[2], "base64") };
+  } catch {
+    return null;
+  }
 }
 
 /** Redacts the obvious identifiers. Applied whenever has_pii fires. */
@@ -135,6 +155,10 @@ export async function POST(request: Request) {
   // conservative up-front estimate to the cookie and report the true figure in the events.
   // It is measured at ~$0.00004/call for 10 questions (see docs/ARCHITECTURE.md).
   const COST_PER_CALL = 0.00004;
+  // Split by front door. Image rows carry no text yet, so they take the vision path and must
+  // not be handed to the text prefilter, which would drop them without emitting anything.
+  const imageRecords = records.filter((r) => !r.text.trim() && r.imageRef);
+  const unusable = records.filter((r) => !r.text.trim() && !r.imageRef);
   const textual = records.filter((r) => r.text.trim());
   const { candidates, dropped } = prefilter(
     textual.map((r) => ({ id: r.id, text: r.text })),
@@ -163,6 +187,73 @@ export async function POST(request: Request) {
 
         const byId = new Map(records.map((r) => [r.id, r]));
 
+        // Image records arrive with an empty text field, so they would never survive the
+        // prefilter and would never be streamed back -- the client would wait forever for
+        // rows that never arrive. Enrich them first: EXIF gives exact coordinates, vision
+        // gives the caption that becomes their text plus the alt text accessibility needs.
+        for (const record of imageRecords) {
+          const decoded = decodeDataUrl(record.imageRef);
+          let meta: Awaited<ReturnType<typeof readImageMeta>> = {};
+          let described: Awaited<ReturnType<typeof describeImage>> = null;
+          let ocr: Awaited<ReturnType<typeof readImageText>> = null;
+
+          if (decoded) {
+            meta = await readImageMeta(decoded.bytes);
+            described = await describeImage(decoded.bytes, decoded.mimeType);
+            // A screenshot is the documented fallback for platforms that block us, so always
+            // try to read text out of the image as well as describe it.
+            ocr = await readImageText(decoded.bytes, decoded.mimeType);
+          }
+
+          const ocrText = ocr?.text?.trim() ?? "";
+          const text = ocrText || described?.caption?.trim() || record.text;
+
+          // EXIF is the only exact geo source in this system; it outranks any inference.
+          const places =
+            meta.lat != null && meta.lon != null
+              ? geoparse({ text, lat: meta.lat, lon: meta.lon, method: "exif" })
+              : geoparse({ text });
+
+          const enriched: FloodRecord = {
+            ...record,
+            text,
+            ...(described?.altText ? { imageAlt: described.altText } : {}),
+            ...(meta.timestamp ? { timestamp: record.timestamp ?? meta.timestamp } : {}),
+            places,
+            labels: described
+              ? {
+                  relevant: { value: described.hazardVisible, confidence: described.confidence, via: "hazard" },
+                  hazard: { value: described.hazard, confidence: described.confidence },
+                  category: { value: described.category, confidence: described.confidence },
+                  has_place: { value: places.length > 0, confidence: places.length ? 0.9 : 0.5 },
+                }
+              : {
+                  // No vision available. Say so rather than inventing a classification.
+                  relevant: { value: false, confidence: 0, via: "hazard" },
+                },
+            classifier: described ? "jev" : "heuristic",
+          };
+
+          if (enriched.labels.relevant?.value) {
+            funnel.relevant++;
+            if (places.length) funnel.mappable++;
+            else funnel.noPlaceMentioned++;
+          }
+          send({ type: "record", record: enriched });
+        }
+        if (imageRecords.length) send({ type: "funnel", funnel });
+
+        // Rows with neither text nor an image cannot be classified by anything. They are
+        // still returned, labelled honestly, because a row that vanishes is a row the user
+        // cannot account for.
+        for (const record of unusable) {
+          funnel.rejectedRows.push({ row: 0, reason: `record ${record.id} has no text and no image` });
+          send({
+            type: "record",
+            record: { ...record, labels: { relevant: { value: false, confidence: 0, via: "hazard" } }, classifier: "heuristic" } satisfies FloodRecord,
+          });
+        }
+
         // Dropped records are emitted immediately, labelled honestly as not-relevant by
         // the local pass. They are never silently discarded.
         for (const d of dropped) {
@@ -188,6 +279,10 @@ export async function POST(request: Request) {
 
         const worker = async () => {
           for (;;) {
+            // If the reader has gone (tab closed, judge navigated away) stop immediately.
+            // Without this the stream runs to completion and keeps spending on classification
+            // nobody will ever see.
+            if (request.signal.aborted) return;
             const index = cursor++;
             if (index >= candidates.length) return;
             const candidate = candidates[index];
