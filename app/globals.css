@@ -153,10 +153,26 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Accessibility toggle, applied on <html data-font="legible">. */
+/*
+  Accessibility toggle, applied on <html data-font="legible">. Swapping the family alone was
+  too subtle to notice (Atkinson and Geist are close at 14px, and every number is monospace),
+  so legible mode also enlarges text by an eighth, opens the spacing, and moves the monospace
+  figures onto Atkinson too. Tailwind sizes are rem-based, so the root size scales them all.
+*/
+:root[data-font="legible"] {
+  font-size: 112.5%;
+}
 :root[data-font="legible"] body {
   font-family: var(--font-legible);
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
+  word-spacing: 0.06em;
+  line-height: 1.6;
+}
+:root[data-font="legible"] .font-mono,
+:root[data-font="legible"] code,
+:root[data-font="legible"] kbd {
+  font-family: var(--font-legible);
+  letter-spacing: 0.03em;
 }
 
 /* Larger hit targets for gloves and outdoor use, on <html data-touch="large">. */
