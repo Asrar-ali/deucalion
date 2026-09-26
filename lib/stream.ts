@@ -92,28 +92,47 @@ export async function runClassify(
   for (let i = 0; i < all.length; i += CLASSIFY_BATCH) batches.push(all.slice(i, i + CLASSIFY_BATCH));
   if (batches.length === 0) batches.push([]);
 
-  const sum = { prefiltered: 0, relevant: 0, mappable: 0, noPlaceMentioned: 0 };
-  const rejected: FunnelCounts["rejectedRows"] = [];
-  const combine = (f: FunnelCounts): FunnelCounts => ({
-    raw: all.length,
-    deduped: all.length,
-    prefiltered: sum.prefiltered + f.prefiltered,
-    relevant: sum.relevant + f.relevant,
-    mappable: sum.mappable + f.mappable,
-    noPlaceMentioned: sum.noPlaceMentioned + f.noPlaceMentioned,
-    rejectedRows: [...rejected, ...f.rejectedRows].slice(0, 200),
-  });
+  // Batches run a few at a time. Each request classifies with its own server-side worker pool,
+  // so the upstream model (measured ~370 calls/s at 100 in flight) is the limit, not this loop.
+  // Each batch keeps its own latest funnel; the combined funnel is their sum, so batches that
+  // finish out of order still reconcile.
+  const perBatch = new Map<number, FunnelCounts>();
+  const combine = (): FunnelCounts => {
+    const t = { prefiltered: 0, relevant: 0, mappable: 0, noPlaceMentioned: 0 };
+    const rejectedRows: FunnelCounts["rejectedRows"] = [];
+    for (const f of perBatch.values()) {
+      t.prefiltered += f.prefiltered;
+      t.relevant += f.relevant;
+      t.mappable += f.mappable;
+      t.noPlaceMentioned += f.noPlaceMentioned;
+      rejectedRows.push(...f.rejectedRows);
+    }
+    return { raw: all.length, deduped: all.length, ...t, rejectedRows: rejectedRows.slice(0, 200) };
+  };
+
+  // Each request reports the cookie's prior spend plus its own. Parallel requests all start from
+  // the same prior figure, so the true total is that base plus every request's own spend.
+  const spentBy = new Map<number, number>();
+  let baseUsed: number | undefined;
+  let anyDegraded = false;
+  const mergeSpend = (index: number, s: SpendState): SpendState => {
+    anyDegraded = anyDegraded || s.degraded;
+    if (s.spent === undefined) return { ...s, degraded: anyDegraded };
+    baseUsed ??= Math.max(0, s.used - s.spent);
+    spentBy.set(index, s.spent);
+    let total = baseUsed;
+    for (const v of spentBy.values()) total += v;
+    return { ...s, used: total, degraded: anyDegraded };
+  };
 
   let received = 0;
   let lastSpend: SpendState | undefined;
   let modelVersion: string | undefined;
   let failed = false;
-  let finalFunnel: FunnelCounts = combine({
-    raw: 0, deduped: 0, prefiltered: 0, relevant: 0, mappable: 0, noPlaceMentioned: 0, rejectedRows: [],
-  });
+  let lost = false;
+  let next = 0;
 
-  for (const batch of batches) {
-    let batchFunnel: FunnelCounts | undefined;
+  const runOne = async (index: number, batch: FloodRecord[], onHeaders: () => void) => {
     const countRecords = (n: number) => {
       received += n;
       if (batches.length > 1) callbacks.onProgress?.(received, all.length, "classify");
@@ -129,53 +148,78 @@ export async function runClassify(
         onRecord: undefined,
         onProgress: batches.length > 1 ? undefined : callbacks.onProgress,
         onFunnel: (f) => {
-          batchFunnel = f;
-          callbacks.onFunnel?.(combine(f));
+          perBatch.set(index, f);
+          callbacks.onFunnel?.(combine());
         },
         onSpend: (s) => {
-          lastSpend = s;
-          callbacks.onSpend?.(s);
+          lastSpend = mergeSpend(index, s);
+          callbacks.onSpend?.(lastSpend);
         },
         onError: (message) => {
           failed = true;
           callbacks.onError?.(message);
         },
         onDone: (f, s, v) => {
-          batchFunnel = f;
-          lastSpend = s;
+          perBatch.set(index, f);
+          lastSpend = mergeSpend(index, s);
           modelVersion = v ?? modelVersion;
         },
+        onHeaders,
       }, signal);
     } catch (err) {
       // A dropped connection makes fetch or the stream reader throw. Without this catch the
       // rejection escaped to the caller, no notice appeared and the run failed silently.
-      if ((err as { name?: string })?.name === "AbortError") return;
-      callbacks.onError?.(
-        "Lost the connection while classifying. Posts already classified are kept; load the file again to finish the rest.",
-      );
-      return;
+      if ((err as { name?: string })?.name === "AbortError") { failed = true; return; }
+      if (!lost) {
+        lost = true;
+        callbacks.onError?.(
+          "Lost the connection while classifying. Posts already classified are kept; load the file again to finish the rest.",
+        );
+      }
+      failed = true;
+    } finally {
+      onHeaders();
     }
-    if (batchFunnel) {
-      finalFunnel = combine(batchFunnel);
-      sum.prefiltered += batchFunnel.prefiltered;
-      sum.relevant += batchFunnel.relevant;
-      sum.mappable += batchFunnel.mappable;
-      sum.noPlaceMentioned += batchFunnel.noPlaceMentioned;
-      rejected.push(...batchFunnel.rejectedRows);
-    }
-    // A budget block or server error on one batch will repeat on the next; stop and report once.
-    if (failed) return;
-  }
+  };
 
-  if (lastSpend) callbacks.onDone?.(finalFunnel, lastSpend, modelVersion);
+  // The first request goes alone until its headers arrive: the spend cookie is set on those
+  // headers, and later requests must read it or a parallel run could overshoot the budget.
+  const lane = async (waitFor?: Promise<void>) => {
+    if (waitFor) await waitFor;
+    for (;;) {
+      // A budget block or server error on one batch will repeat on the next; stop and report once.
+      if (failed || signal?.aborted) return;
+      const index = next++;
+      if (index >= batches.length) return;
+      await runOne(index, batches[index], index === 0 ? firstHeaders.resolve : () => {});
+    }
+  };
+  const firstHeaders = (() => {
+    let resolve!: () => void;
+    const promise = new Promise<void>((r) => { resolve = r; });
+    return { promise, resolve };
+  })();
+
+  const lanes = Math.min(PARALLEL_BATCHES, batches.length);
+  await Promise.all([
+    lane(),
+    ...Array.from({ length: lanes - 1 }, () => lane(firstHeaders.promise)),
+  ]);
+  firstHeaders.resolve();
+
+  if (failed) return;
+  if (signal?.aborted) return;
+  if (lastSpend) callbacks.onDone?.(combine(), lastSpend, modelVersion);
 }
 
 /** Records per classify request. ~2,500 records is ~1 MB of JSON, well under Vercel's cap. */
 const CLASSIFY_BATCH = 2500;
+/** Requests in flight at once. Each has its own worker pool server-side. */
+const PARALLEL_BATCHES = 3;
 
 async function classifyStream(
   payload: { records: FloodRecord[]; profile: unknown; byoKey?: string; accessCode?: string },
-  callbacks: ClassifyCallbacks & { onRecordBatch?: (records: FloodRecord[]) => void },
+  callbacks: ClassifyCallbacks & { onRecordBatch?: (records: FloodRecord[]) => void; onHeaders?: () => void },
   signal?: AbortSignal,
 ): Promise<void> {
   const res = await fetch("/api/classify", {
@@ -185,6 +229,7 @@ async function classifyStream(
     signal,
   });
 
+  callbacks.onHeaders?.();
   if (!res.ok || !res.body) {
     const detail = await res.text().catch(() => "");
     callbacks.onError?.(

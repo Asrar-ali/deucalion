@@ -41,6 +41,8 @@ export class SystemOneError extends Error {
     readonly body: string,
     /** True when retrying could succeed. */
     readonly retryable: boolean,
+    /** Server-suggested wait from a Retry-After header, in ms. */
+    readonly retryAfterMs?: number,
   ) {
     super(`systemone ${status}: ${body.slice(0, 200)}`);
   }
@@ -79,7 +81,8 @@ export async function decide(
     const body = await res.text().catch(() => "");
     // 429 rate limit and 5xx are worth retrying. 401/402/404 are not.
     const retryable = res.status === 429 || res.status >= 500;
-    throw new SystemOneError(res.status, body, retryable);
+    const ra = Number(res.headers.get("retry-after"));
+    throw new SystemOneError(res.status, body, retryable, Number.isFinite(ra) && ra > 0 ? Math.min(ra * 1000, 8000) : undefined);
   }
 
   return (await res.json()) as SystemOneResponse;
@@ -90,7 +93,7 @@ export async function decideWithRetry(
   state: State,
   questions: Record<string, Question>,
   opts: ClientOptions,
-  maxAttempts = 4,
+  maxAttempts = 6,
 ): Promise<SystemOneResponse> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -99,7 +102,7 @@ export async function decideWithRetry(
     } catch (err) {
       lastErr = err;
       if (!(err instanceof SystemOneError) || !err.retryable) throw err;
-      const delay = Math.min(2000, 150 * 2 ** attempt) + Math.random() * 150;
+      const delay = (err.retryAfterMs ?? Math.min(4000, 200 * 2 ** attempt)) + Math.random() * 250;
       await new Promise((r) => setTimeout(r, delay));
     }
   }
@@ -107,7 +110,7 @@ export async function decideWithRetry(
 }
 
 /**
- * Bounded-concurrency map. P50 latency is ~0.26s, so concurrency 20 puts the 8k-row
+ * Bounded-concurrency map. P50 latency is ~0.26s, so concurrency 20 put the 8k-row
  * corpus at roughly a minute. Raise carefully: OpenRouter rate limits are unpublished.
  */
 export async function mapConcurrent<T, R>(
