@@ -17,6 +17,8 @@ import type { EventProfile, FloodRecord } from "../../../lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// The fast path tries first; the slow proxy fallback can take up to 30s.
+export const maxDuration = 60;
 
 const MAX_RECORDS = 60;
 const EXCERPT_CHARS = 220;
@@ -170,10 +172,12 @@ export async function POST(request: Request) {
     "never use outside knowledge, never guess. Write 1 to 3 short sentences, each under 30 " +
     "words. NUMBERS: never state a total, count, share or ranking except by quoting a figure " +
     "in FACTS exactly, and when FACTS has a figure for a place or term in the question, state " +
-    "it in your first sentence. Only if the question asks for a total, count or ranking that " +
-    `FACTS does not cover, say the answer is based on a sample of ${records.length} of ` +
-    `${facts.totalLoaded} posts and give no total; otherwise do not mention the sample. ` +
-    "Never say 'most frequently' or 'most common' unless FACTS gives the ranking. Every " +
+    "it in your first sentence. If the question asks for a total, count or ranking that FACTS " +
+    "does not cover, still answer using what the sample posts actually show (name the places " +
+    "or themes you see in them), then add one short sentence noting the answer is based on a " +
+    `sample of ${records.length} of ${facts.totalLoaded} posts and gives no total; never give ` +
+    "an empty or caveat-only answer when the posts contain something you can say. Never say " +
+    "'most frequently' or 'most common' unless FACTS gives the ranking. Every " +
     "sentence MUST include citedRecordIds: 1 to 3 ids drawn ONLY from the posts given (for a " +
     "sentence that quotes a FACTS figure, cite 1 example post that matches). If the data " +
     "cannot answer the question, output exactly one sentence saying so, with an empty " +

@@ -147,8 +147,12 @@ export function RecordDetail({
           <>
             <dt style={{ color: "var(--text-muted)" }}>Category</dt>
             <dd className="flex items-center gap-2">
-              <StaffGauge view={categoryGauge} gate={CONFIDENCE_GATE.category} size="xs" />
               {CATEGORY_META[category].label}
+              {categoryGauge.number && (
+                <span style={{ color: "var(--text-faint)" }} title={categoryGauge.ariaText}>
+                  {categoryGauge.number}
+                </span>
+              )}
             </dd>
           </>
         )}

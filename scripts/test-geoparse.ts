@@ -19,6 +19,12 @@ const CASES: Array<{ text: string; expect: string | null; why: string }> = [
   { text: "I love London", expect: "London", why: "ambiguous with no context" },
   { text: "just had the best sandwich", expect: null, why: "no place at all" },
   { text: "Camping tomorrow. That would be fun.", expect: null, why: "no place at all" },
+  { text: "Lake St. Martin First Nation under evacuation order", expect: "Lake St. Martin", why: "MB reserve, community rollup" },
+  { text: "Cumberland House Cree Nation flooded again this spring", expect: "Cumberland House", why: "SK reserve" },
+  { text: "Lytton First Nation assessing damage after the water rose", expect: "Lytton", why: "BC reserve" },
+  { text: "Kahnawake road access cut off by high water", expect: "Kahnawake", why: "QC reserve" },
+  { text: "Tobique First Nation issued a flood warning", expect: "Tobique", why: "NB reserve" },
+  { text: "Old Crow residents watching the Porcupine River rise", expect: "Old Crow", why: "YT reserve" },
 ];
 
 let failures = 0;

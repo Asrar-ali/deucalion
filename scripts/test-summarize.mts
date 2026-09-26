@@ -190,20 +190,25 @@ if (hadKey) {
 // 6: the whole module must degrade cleanly with no key
 // ---------------------------------------------------------------------------
 
-console.log("\n=== degraded mode: GEMINI_API_KEY unset");
+console.log("\n=== degraded mode: no provider key set");
+// narrate() tries the fast OpenRouter path before the Gemini proxy, so both keys must be
+// absent to simulate the real no-key situation this test is checking.
+const hadOpenRouterKey = process.env.OPENROUTER_API_KEY;
 delete process.env.GEMINI_API_KEY;
+delete process.env.OPENROUTER_API_KEY;
 
 const degradedClusters = clusterRecords(records);
 const degradedBrief = buildExtractiveBrief(records, degradedClusters);
 const degradedNarrative = await narrate(degradedClusters, records);
 const degradedPlain = await plainLanguage(degradedBrief);
 
-assert(degradedClusters.length === clusters.length, "clustering is unaffected by GEMINI_API_KEY being unset");
+assert(degradedClusters.length === clusters.length, "clustering is unaffected by no provider key being set");
 assert(degradedBrief === extractive, "extractive brief is byte-identical with no key (no network involved)");
-assert(degradedNarrative === undefined, "narrate() returns undefined with no key");
+assert(degradedNarrative === undefined, "narrate() returns undefined with no provider key");
 assert(degradedPlain === undefined, "plainLanguage() returns undefined with no key");
 
 if (hadKey) process.env.GEMINI_API_KEY = hadKey;
+if (hadOpenRouterKey) process.env.OPENROUTER_API_KEY = hadOpenRouterKey;
 
 // ---------------------------------------------------------------------------
 

@@ -295,6 +295,10 @@ export function Deucalion() {
   // effects twice in development and a paid classification run should never double, so the
   // same discipline is kept here even though this path is free.
   const startDemoReplay = useCallback(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
     setRecords([]);
     setProfile(demoEventProfile());
     setFunnel(null);
@@ -308,8 +312,9 @@ export function Deucalion() {
     void replayDemo({
       onRecordBatch: (batch) => setRecords((prev) => [...prev, ...batch]),
       onProgress: (done, total, stage) => setProgress({ done, total, stage }),
-      onFunnel: setFunnel,
+      onFunnel: (f) => { if (!signal.aborted) setFunnel(f); },
       onDone: (finalFunnel, finalClusters, finalBrief) => {
+        if (signal.aborted) return; // superseded or wiped mid-replay
         setFunnel(finalFunnel);
         setClusters(finalClusters);
         setBrief(finalBrief);
@@ -668,8 +673,13 @@ export function Deucalion() {
         anchor.download =
           res.headers.get("content-disposition")?.match(/filename="?([^"]+)"?/)?.[1] ??
           `deucalion.${format}`;
+        // Firefox only starts the download if the anchor is in the document when clicked.
+        // Revoking the blob URL in the same tick can also cancel the download before the
+        // browser has read it, so the revoke is deferred instead of running right after click.
+        document.body.appendChild(anchor);
         anchor.click();
-        URL.revokeObjectURL(url);
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30_000);
       } catch (err) {
         notify(
           err instanceof Error ? err.message : "Export failed. Try again, or download the CSV instead.",
@@ -804,14 +814,6 @@ export function Deucalion() {
         )}
 
         <div className="ml-auto flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setView("data")}
-            className="rounded px-2 py-1 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)] hover:underline"
-            style={{ borderRadius: "var(--radius)" }}
-          >
-            Load data
-          </button>
           {spend && !spend.unlimited && (
             <span
               className="tabular-nums text-sm"
@@ -1269,8 +1271,11 @@ export function Deucalion() {
           {!wipeConfirming && (
             <button
               type="button"
-              onClick={async () => {
-                await browserStore.clear();
+              onClick={() => {
+                // Fire and forget: browserStore.clear() never throws, and waiting for it before
+                // navigating back made the button feel stuck on a slow device.
+                void browserStore.clear();
+                setView("data");
                 notify("Saved results cleared from this browser.", "info");
               }}
               className="rounded px-2 py-1 text-sm underline"

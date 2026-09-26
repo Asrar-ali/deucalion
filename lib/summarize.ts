@@ -9,7 +9,7 @@
  * render the extractive brief when it does. See docs/ARCHITECTURE.md 4.8.
  */
 
-import { generateJson, generateText } from "./llm";
+import { generateJson, generateJsonFast, generateText } from "./llm";
 import { tokenize } from "./prefilter";
 import type { Brief, Category, Cluster, FloodRecord } from "./types";
 
@@ -407,10 +407,9 @@ export async function narrate(
     const fullPrompt =
       systemInstruction + "\n\n" + prompt;
 
-    const parsed = await generateJson<unknown>(
-      fullPrompt,
-      RESPONSE_SCHEMA,
-    );
+    const parsed =
+      (await generateJsonFast<unknown>(fullPrompt, RESPONSE_SCHEMA, { timeoutMs: 15_000 })) ??
+      (await generateJson<unknown>(fullPrompt, RESPONSE_SCHEMA, { timeoutMs: 40_000 }));
 
     if (!parsed) return undefined; // safety block, network error, or empty candidate
 
