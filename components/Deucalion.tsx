@@ -21,6 +21,7 @@ import {
   TextAa,
   Trash,
   WifiSlash,
+  HandPointing,
   Warning,
   X,
 } from "@phosphor-icons/react/dist/ssr";
@@ -731,6 +732,13 @@ export function Deucalion() {
             label="Low bandwidth mode: drops map tiles and images, disables dictation"
             short="Low data"
             icon={<WifiSlash size={14} />}
+          />
+          <PrefToggle
+            on={largeTouch}
+            onClick={() => setLargeTouch((v) => !v)}
+            label="Large touch targets, for gloves and outdoor use"
+            short="Large touch"
+            icon={<HandPointing size={14} />}
           />
         </div>
       </header>

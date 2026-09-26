@@ -186,8 +186,29 @@ body {
 :root[data-touch="large"] [role="button"],
 :root[data-touch="large"] a,
 :root[data-touch="large"] input,
-:root[data-touch="large"] select {
+:root[data-touch="large"] select,
+:root[data-touch="large"] summary {
   min-height: 44px;
+}
+/* Icon-only controls (dismiss, map zoom, pref toggles on phones) need width too. */
+:root[data-touch="large"] button,
+:root[data-touch="large"] [role="button"] {
+  min-width: 44px;
+}
+/* Checkboxes and radios are 13px by default: far too small for a gloved thumb. */
+:root[data-touch="large"] input[type="checkbox"],
+:root[data-touch="large"] input[type="radio"] {
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+}
+:root[data-touch="large"] label:has(> input[type="checkbox"]),
+:root[data-touch="large"] label:has(> input[type="radio"]) {
+  min-height: 44px;
+}
+:root[data-touch="large"] .maplibregl-ctrl-group button {
+  width: 44px;
+  height: 44px;
 }
 
 /*

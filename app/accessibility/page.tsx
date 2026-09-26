@@ -105,8 +105,8 @@ export default function AccessibilityPage() {
             With reduced motion requested by the system, marker animation stops and transitions
             are limited to opacity. Text can be zoomed to 200% with nothing clipped
             or lost. The layout holds at phone width with a 16px gutter and no sideways
-            scrolling. Larger touch targets for gloves and outdoor use are wired into the
-            stylesheet, but there is no switch in the interface yet to turn that mode on.
+            scrolling. The Large touch switch in the header makes every button, link, input and
+            map control at least 44px tall and enlarges checkboxes, for gloves and outdoor use.
           </p>
         </div>
 
