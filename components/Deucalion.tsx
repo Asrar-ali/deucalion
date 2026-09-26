@@ -4,6 +4,12 @@
  * The application. Holds all state client-side on purpose: the server stores nothing, so a
  * recycled serverless instance cannot lose a judge's upload, and "your data never persists
  * on our side" is a fact about the architecture rather than a promise. See ARCHITECTURE 6.
+ *
+ * The UI is split into page-like views (data / map / reports / summary / ask) that all share
+ * this one component's state. Nothing is stored server-side, so switching "pages" cannot be a
+ * real Next.js route change without losing everything on navigation; instead a `view` state
+ * variable picks which section renders, synced to the URL hash purely for shareable links and
+ * the back button.
  */
 
 import Link from "next/link";
@@ -36,6 +42,7 @@ import { FunnelStrip } from "./FunnelStrip";
 import { Intake, type IngestResult } from "./Intake";
 import { CategoryLegend, RecordsTable, type SortKey } from "./RecordsTable";
 import { RecordDetail, type ReviewAction } from "./RecordDetail";
+import { AskPanel } from "./AskPanel";
 
 const HAZARD_NOUN: Record<string, string> = {
   flood: "the flood",
@@ -99,6 +106,20 @@ function placeNames(aliases: string[]): string[] {
 
 type Pref = "theme" | "font" | "touch" | "bandwidth";
 
+/** The five page-like views. Order here is the order they appear in the nav bar. */
+const VIEW_META = [
+  { key: "data", label: "Load data" },
+  { key: "map", label: "Map" },
+  { key: "reports", label: "Reports" },
+  { key: "summary", label: "Summary" },
+  { key: "ask", label: "Ask" },
+] as const;
+type View = (typeof VIEW_META)[number]["key"];
+const VIEW_KEYS: readonly string[] = VIEW_META.map((v) => v.key);
+function isView(x: string): x is View {
+  return VIEW_KEYS.includes(x);
+}
+
 export function Deucalion() {
   const [records, setRecords] = useState<FloodRecord[]>([]);
   const [profile, setProfile] = useState<EventProfile | null>(null);
@@ -131,6 +152,37 @@ export function Deucalion() {
   const [wipeConfirming, setWipeConfirming] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const wipeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Which page-like view is showing. Default is "data": nothing to map, filter or summarise
+  // yet. Kept in sync with the URL hash below, purely so the current view survives a reload or
+  // can be shared, since nothing else here is server-side.
+  const [view, setView] = useState<View>("data");
+
+  // Read the hash once on mount, in case the page was opened on a link to a specific view.
+  useEffect(() => {
+    const h = window.location.hash.replace("#", "");
+    if (isView(h)) setView(h);
+  }, []);
+
+  // Keep the hash in sync with the current view. replaceState (not push) so switching views
+  // does not spam the browser history stack.
+  useEffect(() => {
+    const target = `#${view}`;
+    if (window.location.hash !== target) {
+      window.history.replaceState(null, "", target);
+    }
+  }, [view]);
+
+  // A hash edited by hand, or changed by the back/forward buttons, should still move the app
+  // to the matching view.
+  useEffect(() => {
+    const onHashChange = () => {
+      const h = window.location.hash.replace("#", "");
+      if (isView(h)) setView(h);
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   // Preferences live on <html> as data attributes so globals.css can act on them without any
   // JS in the render path. Reads are wrapped because storage throws in private windows.
@@ -185,6 +237,7 @@ export function Deucalion() {
     setSelectedId(null);
     setIngestInfo(null);
     setBusy(true);
+    setView("map");
     void replayDemo({
       onRecordBatch: (batch) => setRecords((prev) => [...prev, ...batch]),
       onProgress: (done, total, stage) => setProgress({ done, total, stage }),
@@ -224,6 +277,7 @@ export function Deucalion() {
     setProgress(null);
     setBusy(false);
     setFilters(DEFAULT_FILTERS);
+    setView("data");
     try {
       localStorage.removeItem(PREFS_KEY);
     } catch {
@@ -264,6 +318,7 @@ export function Deucalion() {
       setSelectedId(null);
       setBusy(true);
       setProgress({ done: 0, total: result.records.length, stage: "prefilter" });
+      setView("map");
 
       const byId = new Map(result.records.map((r) => [r.id, r]));
 
@@ -422,6 +477,12 @@ export function Deucalion() {
     () => (selectedId ? records.find((r) => r.id === selectedId) ?? null : null),
     [records, selectedId],
   );
+  const hazardNoun = HAZARD_NOUN[profile?.hazard ?? "other"] ?? "the event";
+
+  // "N reports on the map, M name no place": the map only plots records with at least one
+  // resolved place, so the caption under it accounts for the rest of what "reports" reported.
+  const mappedVisibleCount = useMemo(() => visible.filter((r) => r.places.length > 0).length, [visible]);
+  const unmappedVisibleCount = visible.length - mappedVisibleCount;
 
   const onReview = (id: string, action: ReviewAction) => {
     setRecords((prev) => prev.map((r) => (r.id === id ? { ...r, review: action } : r)));
@@ -478,6 +539,14 @@ export function Deucalion() {
         )}
 
         <div className="ml-auto flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setView("data")}
+            className="rounded px-2 py-1 text-sm font-medium"
+            style={{ color: "var(--text-muted)", borderRadius: "var(--radius)" }}
+          >
+            Load data
+          </button>
           {spend && !spend.unlimited && (
             <span
               className="font-mono text-sm"
@@ -529,154 +598,252 @@ export function Deucalion() {
 
       <FunnelStrip funnel={funnel} progress={progress} />
 
-      <main id="main" className="flex flex-1 flex-col lg:flex-row">
-        <aside
-          className="w-full shrink-0 border-b lg:w-72 lg:border-b-0 lg:border-r"
-          style={{ borderColor: "var(--line)" }}
-        >
-          <div className="border-b px-4 py-2" style={{ borderColor: "var(--line)" }}>
-            <label htmlFor="focus" className="block text-sm font-medium" style={{ color: "var(--text-muted)" }}>
-              What to map
-            </label>
-            <select
-              id="focus"
-              value={focus}
-              onChange={(e) => setFocus(e.target.value as Focus)}
-              disabled={busy}
-              className="mt-1 w-full rounded px-2 py-1.5 text-sm"
-              style={{ border: "1px solid var(--line-strong)", background: "var(--surface-raised)", color: "var(--text)" }}
-            >
-              <option value="auto">Detect the disaster from the posts</option>
-              <option value="flood">Flooding only (for files with many disaster types)</option>
-            </select>
-            <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
-              Choose before loading. Flooding only asks the classifier about floods and hides
-              posts about other hazards.
+      <nav aria-label="Views" className="flex items-center gap-4 overflow-x-auto border-b px-4" style={{ borderColor: "var(--line)" }}>
+        {VIEW_META.map((v) => (
+          <button
+            key={v.key}
+            type="button"
+            onClick={() => setView(v.key)}
+            aria-current={view === v.key ? "page" : undefined}
+            className="shrink-0 py-2 text-sm font-medium"
+            style={{
+              color: view === v.key ? "var(--text)" : "var(--text-muted)",
+              borderBottom: view === v.key ? "1.5px solid var(--text)" : "1.5px solid transparent",
+            }}
+          >
+            {v.label}
+          </button>
+        ))}
+      </nav>
+
+      <main id="main" className="flex min-w-0 flex-1 flex-col">
+        {view === "data" && (
+          <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6">
+            <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+              Load the provided sample or your own CSV of posts. Deucalion classifies each post,
+              maps the ones that name a place, and summarises them. Nothing is stored on the
+              server.
             </p>
-          </div>
-          <Intake
-            onIngest={onIngest}
-            onError={notify}
-            busy={busy}
-            lowBandwidth={lowBandwidth}
-            // In demo mode nothing may touch the network: on stage the fallback exists because it
-            // might be down. Load replays the fixtures; uploads explain why they are not classified.
-            onDemoLoad={demoMode ? startDemoReplay : undefined}
-          />
 
-          {ingestInfo?.detectedColumns?.length ? (
-            <div className="border-t px-4 py-2 text-sm" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
-              Read column{" "}
-              <code style={{ color: "var(--text)" }}>{ingestInfo.chosenColumn}</code> from{" "}
-              {ingestInfo.detectedColumns.length} column
-              {ingestInfo.detectedColumns.length === 1 ? "" : "s"}
-              {ingestInfo.duplicatesRemoved ? <>, {count(ingestInfo.duplicatesRemoved)} duplicates collapsed</> : null}.
-            </div>
-          ) : null}
-
-          {/* A mixed file is focused on flooding automatically. Say so, with the numbers behind it,
-              or the view silently hides the other disasters, which is the kind of unexplained
-              omission this tool exists to avoid. */}
-          {ingestInfo?.profile.mixed && ingestInfo.profile.hazardShares ? (
-            <div
-              className="border-t px-4 py-2 text-sm"
-              style={{ borderColor: "var(--line)", color: "var(--text-muted)", background: "var(--accent-weak)" }}
-            >
-              <strong style={{ color: "var(--text)" }}>This file mixes several disasters.</strong> Share of hazard
-              keywords:{" "}
-              {(Object.entries(ingestInfo.profile.hazardShares) as Array<[string, number]>)
-                .filter(([, share]) => share >= 0.01)
-                .sort((a, b) => b[1] - a[1])
-                .map(([hazard, share]) => `${hazard} ${Math.round(share * 100)}%`)
-                .join(", ")}
-              . Showing flood posts only. Untick &quot;Only posts about flooding&quot; in the filters to see the rest.
-            </div>
-          ) : null}
-
-          {records.length > 0 && (
-            <FilterPanel
-              filters={filters}
-              setFilters={setFilters}
-              communities={communities}
-              visibleCount={visible.length}
-              relevantCount={relevantCount}
-            />
-          )}
-
-          {records.length > 0 && (
-            <BriefPanel
-              clusters={clusters}
-              brief={brief}
-              onSummarise={summarise}
-              onDownload={download}
-              onSelectRecord={setSelectedId}
-              onPickCluster={(cluster) =>
-                // Was a no-op (`|| true` kept every category). Show exactly the theme's posts.
-                setFilters((f) => ({ ...f, cluster: { label: cluster.label, ids: new Set(cluster.recordIds) } }))
-              }
-            />
-          )}
-        </aside>
-
-        <div className="relative flex min-h-[60vh] min-w-0 flex-1 flex-col">
-          {/* One post and how it got here: demo beat "every point tells you how it got here".
-              Overlays the right of the map on desktop, sits under the map on a phone. */}
-          {selected && (
-            <div
-              className="z-10 border-b lg:absolute lg:right-0 lg:top-0 lg:h-[52vh] lg:w-[400px] lg:overflow-y-auto lg:border-b-0 lg:border-l"
-              style={{ borderColor: "var(--line)", background: "var(--surface-raised)" }}
-            >
-              <RecordDetail
-                record={selected}
-                hazardNoun={HAZARD_NOUN[profile?.hazard ?? "other"] ?? "the event"}
-                onClose={() => setSelectedId(null)}
-                onReview={onReview}
-              />
-            </div>
-          )}
-          <div className="h-[46vh] min-h-[280px] border-b lg:h-[52vh]" style={{ borderColor: "var(--line)" }}>
-            {lowBandwidth && !records.length ? (
-              <div className="grid h-full place-items-center px-6 text-center text-xs" style={{ color: "var(--text-faint)" }}>
-                Low bandwidth mode is on. The map loads without tiles once reports are added.
-              </div>
-            ) : (
-              <FloodMap
-                records={visible}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                lowBandwidth={lowBandwidth}
-                dark={dark}
-              />
-            )}
-          </div>
-
-          <div className="flex items-center justify-between border-b px-4 py-1" style={{ borderColor: "var(--line)" }}>
-            <h2 className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-              {count(visible.length)} report{visible.length === 1 ? "" : "s"}{" "}
-              <span style={{ color: "var(--text-faint)" }}>
-                (same data as the map, in text)
-              </span>
-            </h2>
-            {filters.cluster && (
-              <p className="flex items-center gap-2 text-sm" style={{ color: "var(--text)" }}>
-                Theme: {filters.cluster.label}
-                <button type="button" className="underline" onClick={() => setFilters((f) => ({ ...f, cluster: null }))}>
-                  Clear
-                </button>
+            <div>
+              <label htmlFor="focus" className="block text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+                What to map
+              </label>
+              <select
+                id="focus"
+                value={focus}
+                onChange={(e) => setFocus(e.target.value as Focus)}
+                disabled={busy}
+                className="mt-1 w-full rounded px-2 py-1.5 text-sm"
+                style={{ border: "1px solid var(--line-strong)", background: "var(--surface-raised)", color: "var(--text)" }}
+              >
+                <option value="auto">Detect the disaster from the posts</option>
+                <option value="flood">Flooding only (for files with many disaster types)</option>
+              </select>
+              <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
+                Choose before loading. Flooding only asks the classifier about floods and hides
+                posts about other hazards.
               </p>
-            )}
-            <CategoryLegend />
-          </div>
+            </div>
 
-          <RecordsTable
-            records={visible}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            sort={sort}
-            onSortChange={setSort}
-            totalBeforeFilter={relevantCount}
-          />
-        </div>
+            <Intake
+              onIngest={onIngest}
+              onError={notify}
+              busy={busy}
+              lowBandwidth={lowBandwidth}
+              // In demo mode nothing may touch the network: on stage the fallback exists because it
+              // might be down. Load replays the fixtures; uploads explain why they are not classified.
+              onDemoLoad={demoMode ? startDemoReplay : undefined}
+            />
+
+            {ingestInfo?.detectedColumns?.length ? (
+              <div className="text-sm" style={{ color: "var(--text-muted)" }}>
+                Read column{" "}
+                <code style={{ color: "var(--text)" }}>{ingestInfo.chosenColumn}</code> from{" "}
+                {ingestInfo.detectedColumns.length} column
+                {ingestInfo.detectedColumns.length === 1 ? "" : "s"}
+                {ingestInfo.duplicatesRemoved ? <>, {count(ingestInfo.duplicatesRemoved)} duplicates collapsed</> : null}.
+              </div>
+            ) : null}
+
+            {/* A mixed file is focused on flooding automatically. Say so, with the numbers behind it,
+                or the view silently hides the other disasters, which is the kind of unexplained
+                omission this tool exists to avoid. */}
+            {ingestInfo?.profile.mixed && ingestInfo.profile.hazardShares ? (
+              <div
+                className="rounded px-3 py-2 text-sm"
+                style={{ color: "var(--text-muted)", background: "var(--accent-weak)", borderRadius: "var(--radius)" }}
+              >
+                <strong style={{ color: "var(--text)" }}>This file mixes several disasters.</strong> Share of hazard
+                keywords:{" "}
+                {(Object.entries(ingestInfo.profile.hazardShares) as Array<[string, number]>)
+                  .filter(([, share]) => share >= 0.01)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([hazard, share]) => `${hazard} ${Math.round(share * 100)}%`)
+                  .join(", ")}
+                . Showing flood posts only. Untick &quot;Only posts about flooding&quot; in the filters to see the rest.
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {view === "map" && (
+          <div className="flex min-w-0 flex-1 flex-col lg:flex-row">
+            {records.length > 0 && (
+              <FiltersSidebar
+                filters={filters}
+                setFilters={setFilters}
+                communities={communities}
+                visibleCount={visible.length}
+                relevantCount={relevantCount}
+              />
+            )}
+
+            <div className="relative flex min-w-0 flex-1 flex-col">
+              {records.length === 0 ? (
+                <EmptyState
+                  message={
+                    lowBandwidth
+                      ? "Low bandwidth mode is on. The map loads without tiles once reports are added."
+                      : "No reports loaded yet."
+                  }
+                  ctaLabel="Load data"
+                  onCta={() => setView("data")}
+                />
+              ) : (
+                <>
+                  {/* One post and how it got here: demo beat "every point tells you how it got here".
+                      Overlays the right of the map on desktop, sits under the map on a phone. */}
+                  {selected && (
+                    <div
+                      className="z-10 border-b lg:absolute lg:right-0 lg:top-0 lg:h-[52vh] lg:w-[400px] lg:overflow-y-auto lg:border-b-0 lg:border-l"
+                      style={{ borderColor: "var(--line)", background: "var(--surface-raised)" }}
+                    >
+                      <RecordDetail record={selected} hazardNoun={hazardNoun} onClose={() => setSelectedId(null)} onReview={onReview} />
+                    </div>
+                  )}
+                  <div
+                    className="min-h-[420px] border-b"
+                    style={{ borderColor: "var(--line)", height: "max(420px, calc(100dvh - 260px))" }}
+                  >
+                    <FloodMap records={visible} selectedId={selectedId} onSelect={setSelectedId} lowBandwidth={lowBandwidth} dark={dark} />
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm" style={{ color: "var(--text-muted)" }}>
+                    <span>
+                      {count(mappedVisibleCount)} report{mappedVisibleCount === 1 ? "" : "s"} on the map,{" "}
+                      {count(unmappedVisibleCount)} name no place
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setView("reports")}
+                      className="underline"
+                      style={{ color: "var(--text)" }}
+                    >
+                      See them as a list
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {view === "reports" && (
+          <div className="flex min-w-0 flex-1 flex-col lg:flex-row">
+            {records.length > 0 && (
+              <FiltersSidebar
+                filters={filters}
+                setFilters={setFilters}
+                communities={communities}
+                visibleCount={visible.length}
+                relevantCount={relevantCount}
+              />
+            )}
+
+            <div className="flex min-w-0 flex-1 flex-col">
+              {selected && (
+                <div className="border-b lg:hidden" style={{ borderColor: "var(--line)", background: "var(--surface-raised)" }}>
+                  <RecordDetail record={selected} hazardNoun={hazardNoun} onClose={() => setSelectedId(null)} onReview={onReview} />
+                </div>
+              )}
+
+              <div className="flex items-center justify-between border-b px-4 py-1" style={{ borderColor: "var(--line)" }}>
+                <h2 className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+                  {count(visible.length)} report{visible.length === 1 ? "" : "s"}{" "}
+                  <span style={{ color: "var(--text-faint)" }}>(same data as the map, in text)</span>
+                </h2>
+                {filters.cluster && (
+                  <p className="flex items-center gap-2 text-sm" style={{ color: "var(--text)" }}>
+                    Theme: {filters.cluster.label}
+                    <button type="button" className="underline" onClick={() => setFilters((f) => ({ ...f, cluster: null }))}>
+                      Clear
+                    </button>
+                  </p>
+                )}
+                <CategoryLegend />
+              </div>
+
+              <div className="flex min-w-0 flex-1 flex-col lg:flex-row">
+                <div className="min-w-0 flex-1">
+                  <RecordsTable
+                    records={visible}
+                    selectedId={selectedId}
+                    onSelect={setSelectedId}
+                    sort={sort}
+                    onSortChange={setSort}
+                    totalBeforeFilter={relevantCount}
+                  />
+                </div>
+                {selected && (
+                  <div
+                    className="hidden shrink-0 lg:block lg:w-[400px] lg:overflow-y-auto lg:border-l"
+                    style={{ borderColor: "var(--line)", background: "var(--surface-raised)" }}
+                  >
+                    <RecordDetail record={selected} hazardNoun={hazardNoun} onClose={() => setSelectedId(null)} onReview={onReview} />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {view === "summary" && (
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-6">
+            {records.length === 0 ? (
+              <EmptyState message="Load data first to build a summary." ctaLabel="Load data" onCta={() => setView("data")} />
+            ) : (
+              <BriefPanel
+                clusters={clusters}
+                brief={brief}
+                onSummarise={summarise}
+                onDownload={download}
+                onSelectRecord={(id) => {
+                  setSelectedId(id);
+                  setView("reports");
+                }}
+                onPickCluster={(cluster) => {
+                  // Was a no-op (`|| true` kept every category). Show exactly the theme's posts.
+                  setFilters((f) => ({ ...f, cluster: { label: cluster.label, ids: new Set(cluster.recordIds) } }));
+                  setView("reports");
+                }}
+              />
+            )}
+          </div>
+        )}
+
+        {view === "ask" && (
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 px-4 py-6">
+            {/* ASK_PANEL_SLOT */}
+            <AskPanel
+              records={visible}
+              onSelectRecord={(id) => {
+                setSelectedId(id);
+                setView("reports");
+              }}
+              demo={demoMode}
+            />
+          </div>
+        )}
       </main>
 
       <footer
@@ -821,6 +988,65 @@ function PrefToggle({
   );
 }
 
+/** A helpful stand-in for a view that has nothing to show yet, so nav items never need to be
+ * disabled or greyed out: clicking "Map" or "Summary" before data is loaded still lands
+ * somewhere useful. */
+function EmptyState({
+  message,
+  ctaLabel,
+  onCta,
+}: {
+  message: string;
+  ctaLabel?: string;
+  onCta?: () => void;
+}) {
+  return (
+    <div className="flex min-h-[300px] flex-1 flex-col items-center justify-center gap-3 px-6 py-12 text-center">
+      <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+        {message}
+      </p>
+      {ctaLabel && onCta && (
+        <button
+          type="button"
+          onClick={onCta}
+          className="rounded px-3 py-1.5 text-sm"
+          style={{ border: "1px solid var(--line-strong)", color: "var(--text)", borderRadius: "var(--radius)" }}
+        >
+          {ctaLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** The filters, shared by the map and reports views: a fixed ~280px sidebar on desktop, and a
+ * collapsed <details> above the content on a phone so a long filter list never pushes the map
+ * or table off screen. */
+function FiltersSidebar(props: {
+  filters: Filters;
+  setFilters: React.Dispatch<React.SetStateAction<Filters>>;
+  communities: Array<[string, number]>;
+  visibleCount: number;
+  relevantCount: number;
+}) {
+  return (
+    <>
+      <details className="border-b lg:hidden" style={{ borderColor: "var(--line)" }}>
+        <summary className="cursor-pointer px-4 py-2 text-sm font-medium" style={{ color: "var(--text)" }}>
+          Filters
+        </summary>
+        <FilterPanel {...props} />
+      </details>
+      <div
+        className="hidden shrink-0 lg:block lg:w-[280px] lg:overflow-y-auto lg:border-r"
+        style={{ borderColor: "var(--line)" }}
+      >
+        <FilterPanel {...props} />
+      </div>
+    </>
+  );
+}
+
 function FilterPanel({
   filters,
   setFilters,
@@ -843,9 +1069,9 @@ function FilterPanel({
     });
 
   return (
-    <section aria-labelledby="filters-heading" className="flex flex-col gap-3 border-t p-4" style={{ borderColor: "var(--line)" }}>
+    <section aria-labelledby="filters-heading" className="flex flex-col gap-3 p-4">
       <div className="flex items-baseline justify-between">
-        <h2 id="filters-heading" className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+        <h2 id="filters-heading" className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
           Filter
         </h2>
         <span className="font-mono text-sm" style={{ color: "var(--text-faint)" }} aria-live="polite">
@@ -863,7 +1089,7 @@ function FilterPanel({
           value={filters.query}
           onChange={(e) => setFilters((f) => ({ ...f, query: e.target.value }))}
           placeholder="Search text"
-          className="w-full rounded px-2 py-1 text-xs"
+          className="w-full rounded px-2 py-1 text-sm"
           style={{
             background: "var(--surface-raised)",
             border: "1px solid var(--line-strong)",
@@ -948,7 +1174,7 @@ function FilterPanel({
             id="community"
             value={filters.community ?? ""}
             onChange={(e) => setFilters((f) => ({ ...f, community: e.target.value || null }))}
-            className="w-full rounded px-2 py-1 text-xs"
+            className="w-full rounded px-2 py-1 text-sm"
             style={{
               background: "var(--surface-raised)",
               border: "1px solid var(--line-strong)",
@@ -993,8 +1219,8 @@ function BriefPanel({
   };
 
   return (
-    <section aria-labelledby="brief-heading" className="flex flex-col gap-2 border-t p-4" style={{ borderColor: "var(--line)" }}>
-      <h2 id="brief-heading" className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+    <section aria-labelledby="brief-heading" className="flex flex-col gap-2">
+      <h2 id="brief-heading" className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
         Situation
       </h2>
 
@@ -1003,7 +1229,7 @@ function BriefPanel({
           <button
             type="button"
             onClick={() => onSummarise(false)}
-            className="rounded px-2 py-1.5 text-xs"
+            className="rounded px-2 py-1.5 text-sm"
             style={{ border: "1px solid var(--line-strong)", color: "var(--text)", borderRadius: "var(--radius)" }}
           >
             Summarise (local, instant)
@@ -1011,7 +1237,7 @@ function BriefPanel({
           <button
             type="button"
             onClick={() => onSummarise(true)}
-            className="rounded px-2 py-1.5 text-xs"
+            className="rounded px-2 py-1.5 text-sm"
             style={{ border: "1px solid var(--line-strong)", color: "var(--text-muted)", borderRadius: "var(--radius)" }}
             title="Also asks a language model to write a narrative. Every sentence must cite the records it came from, or it is dropped."
           >
@@ -1060,7 +1286,7 @@ function BriefPanel({
                         type="button"
                         onClick={() => onSelectRecord(id)}
                         aria-label={`Open cited post ${id}`}
-                        className="rounded px-1 font-mono text-xs"
+                        className="rounded px-1 font-mono text-sm"
                         style={{ border: "1px solid var(--line-strong)", color: "var(--accent)" }}
                       >
                         {id}
