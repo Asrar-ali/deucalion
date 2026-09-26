@@ -1,26 +1,242 @@
 @import "tailwindcss";
+@import "maplibre-gl/dist/maplibre-gl.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+  Deucalion design tokens.
+
+  Brief: dense operational tool for emergency responders and band-office staff, on satellite
+  internet, outdoors, sometimes on a phone in the rain. Trust-first, not expressive.
+  Variance 3 / Motion 2 / Density 7.
+
+  Rules this file enforces:
+  - ONE accent (signal blue) for interactivity and selection. Status colours are semantic and
+    separate from the accent, so "interactive" never reads as "urgent".
+  - Status is NEVER colour alone. Every status also carries an icon and a text label in the
+    markup. These tokens only supply the colour half.
+  - Severity uses a warm sequential ramp rather than red/green, which fails for the ~8% of
+    men with deuteranopia. Rose for urgent, amber for notable, slate for background.
+  - Mono for every number. At this density, misaligned digits are unreadable.
+  - No pure black, no pure white: both kill depth and raise eye strain on long shifts.
+*/
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
+  /* Braille Institute typeface, offered as an accessibility toggle rather than a default. */
+  --font-legible: var(--font-atkinson), var(--font-geist-sans), sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  color-scheme: light dark;
+
+  /* surfaces, coolest to warmest */
+  --surface: oklch(99% 0.002 250);
+  --surface-sunken: oklch(96.5% 0.004 250);
+  --surface-raised: oklch(100% 0 0);
+  --surface-inset: oklch(94% 0.005 250);
+
+  --line: oklch(89% 0.006 250);
+  --line-strong: oklch(78% 0.01 250);
+
+  --text: oklch(24% 0.012 255);
+  --text-muted: oklch(48% 0.012 255);
+  --text-faint: oklch(62% 0.01 255);
+
+  /* the single accent: interactivity, focus, selection. Never used for status. */
+  --accent: oklch(52% 0.15 240);
+  --accent-hover: oklch(46% 0.16 240);
+  --accent-weak: oklch(94% 0.03 240);
+  --accent-text: oklch(99% 0 0);
+
+  /* semantic status. Paired with icons + labels in markup, never used alone. */
+  --urgent: oklch(52% 0.19 18);
+  --urgent-weak: oklch(95% 0.035 18);
+  --review: oklch(58% 0.14 75);
+  --review-weak: oklch(95% 0.05 85);
+  --settled: oklch(50% 0.1 180);
+  --settled-weak: oklch(95% 0.03 180);
+  --inert: oklch(62% 0.008 250);
+  --inert-weak: oklch(95% 0.004 250);
+
+  /* geo provenance: exact vs inferred. Exact deserves to look different. */
+  --geo-exact: oklch(48% 0.12 200);
+  --geo-inferred: oklch(58% 0.1 260);
+
+  --radius: 6px;
+  --radius-lg: 10px;
+
+  /* One shadow, tinted to the surface hue. No pure-black drop shadows. */
+  --shadow: 0 1px 2px oklch(24% 0.012 255 / 0.06), 0 4px 12px oklch(24% 0.012 255 / 0.05);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --surface: oklch(21% 0.012 255);
+    --surface-sunken: oklch(17% 0.012 255);
+    --surface-raised: oklch(25% 0.013 255);
+    --surface-inset: oklch(15% 0.012 255);
+
+    --line: oklch(31% 0.014 255);
+    --line-strong: oklch(42% 0.016 255);
+
+    --text: oklch(95% 0.005 255);
+    --text-muted: oklch(72% 0.01 255);
+    --text-faint: oklch(58% 0.01 255);
+
+    --accent: oklch(72% 0.14 240);
+    --accent-hover: oklch(78% 0.14 240);
+    --accent-weak: oklch(30% 0.05 240);
+    --accent-text: oklch(17% 0.012 255);
+
+    --urgent: oklch(70% 0.17 20);
+    --urgent-weak: oklch(29% 0.07 20);
+    --review: oklch(76% 0.13 80);
+    --review-weak: oklch(29% 0.06 80);
+    --settled: oklch(72% 0.1 180);
+    --settled-weak: oklch(27% 0.045 180);
+    --inert: oklch(58% 0.01 255);
+    --inert-weak: oklch(26% 0.008 255);
+
+    --geo-exact: oklch(74% 0.11 200);
+    --geo-inferred: oklch(70% 0.1 265);
+
+    --shadow: 0 1px 2px oklch(0% 0 0 / 0.4), 0 4px 14px oklch(0% 0 0 / 0.3);
   }
 }
 
+:root[data-theme="dark"] {
+  --surface: oklch(21% 0.012 255);
+  --surface-sunken: oklch(17% 0.012 255);
+  --surface-raised: oklch(25% 0.013 255);
+  --surface-inset: oklch(15% 0.012 255);
+  --line: oklch(31% 0.014 255);
+  --line-strong: oklch(42% 0.016 255);
+  --text: oklch(95% 0.005 255);
+  --text-muted: oklch(72% 0.01 255);
+  --text-faint: oklch(58% 0.01 255);
+  --accent: oklch(72% 0.14 240);
+  --accent-hover: oklch(78% 0.14 240);
+  --accent-weak: oklch(30% 0.05 240);
+  --accent-text: oklch(17% 0.012 255);
+  --urgent: oklch(70% 0.17 20);
+  --urgent-weak: oklch(29% 0.07 20);
+  --review: oklch(76% 0.13 80);
+  --review-weak: oklch(29% 0.06 80);
+  --settled: oklch(72% 0.1 180);
+  --settled-weak: oklch(27% 0.045 180);
+  --inert: oklch(58% 0.01 255);
+  --inert-weak: oklch(26% 0.008 255);
+  --geo-exact: oklch(74% 0.11 200);
+  --geo-inferred: oklch(70% 0.1 265);
+  --shadow: 0 1px 2px oklch(0% 0 0 / 0.4), 0 4px 14px oklch(0% 0 0 / 0.3);
+}
+
+/* High contrast, and Windows High Contrast / forced-colors. */
+@media (prefers-contrast: more) {
+  :root {
+    --line: oklch(55% 0.02 250);
+    --text-muted: oklch(34% 0.012 255);
+    --text-faint: oklch(40% 0.012 255);
+  }
+}
+
+html {
+  background: var(--surface);
+  color: var(--text);
+  /* Stops iOS zooming on input focus without disabling user zoom. */
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  /* Tabular figures everywhere: counts and confidences must align down a column. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* Accessibility toggle, applied on <html data-font="legible">. */
+:root[data-font="legible"] body {
+  font-family: var(--font-legible);
+  letter-spacing: 0.01em;
+}
+
+/* Larger hit targets for gloves and outdoor use, on <html data-touch="large">. */
+:root[data-touch="large"] button,
+:root[data-touch="large"] [role="button"],
+:root[data-touch="large"] a,
+:root[data-touch="large"] input,
+:root[data-touch="large"] select {
+  min-height: 44px;
+}
+
+/*
+  Focus must be visible and must survive both themes. Never remove it: the whole map layer
+  is keyboard-navigable and the focus ring is how a keyboard user knows where they are.
+*/
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Motion is already near-zero. Under reduced-motion it is exactly zero. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Skip link: visible only once focused. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+}
+.skip-link:focus {
+  left: 0.5rem;
+  top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--accent);
+  color: var(--accent-text);
+  border-radius: var(--radius);
+}
+
+/* Screen-reader-only text that still gets read aloud. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/*
+  Low-bandwidth mode, on <html data-bandwidth="low">. Remote communities run satellite
+  internet, and during a flood it degrades. This hides raster map tiles and images rather
+  than letting the page hang waiting for them.
+*/
+:root[data-bandwidth="low"] .maplibregl-canvas {
+  filter: grayscale(1) contrast(0.9);
+}
+:root[data-bandwidth="low"] img:not([data-essential]) {
+  display: none;
+}
+
+/* MapLibre controls inherit our tokens instead of shipping their default blue-on-white. */
+.maplibregl-ctrl-group {
+  background: var(--surface-raised) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: var(--shadow) !important;
+}
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--line) !important;
 }
