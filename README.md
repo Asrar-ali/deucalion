@@ -87,7 +87,9 @@ voice (STT) ┘
 - **No server-side persistence.** `/api/classify` is stateless by design: the client posts
   the records it holds and the server keeps nothing, partly because a session map would not
   survive a serverless cold start, and partly because the communities this serves should own
-  their own data.
+  their own data. The browser keeps a local cache of classification labels and post text
+  hashes (IndexedDB) so repeat loads are free; "Clear saved results" and "Wipe everything" in
+  the page footer remove it.
 
 Full design, module boundaries and the OCAP privacy stance are in `docs/ARCHITECTURE.md`.
 

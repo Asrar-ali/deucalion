@@ -223,7 +223,9 @@ export default function AccessibilityPage() {
       <footer className="border-t pt-4 text-xs" style={{ borderColor: "var(--line)", color: "var(--text-faint)" }}>
         <p>
           Every label the classifier produces is a proposal with a confidence, never a verified
-          fact. Nothing you load into Deucalion is stored on the server.
+          fact. Nothing you load into Deucalion is stored on the server. This browser keeps
+          classification labels and hashes of post text so that loading the same posts again is
+          free; the Clear saved results and Wipe everything buttons in the page footer remove them.
         </p>
       </footer>
     </main>

@@ -9,7 +9,7 @@
  * omission, and it is the specific failure the sponsor complained about in existing tools.
  */
 
-import { count } from "../lib/display";
+import { count, formatClassified, formatEta, formatRate, type RunProgress } from "../lib/display";
 import type { FunnelCounts } from "../lib/types";
 
 interface Stage {
@@ -22,11 +22,16 @@ interface Stage {
 export function FunnelStrip({
   funnel,
   progress,
+  summary,
 }: {
   funnel: FunnelCounts | null;
-  progress: { done: number; total: number; stage: string } | null;
+  progress: RunProgress | null;
+  summary?: { n: number; ms: number } | null;
 }) {
   if (!funnel) return null;
+
+  const running = !!progress && progress.total > 0 && progress.done < progress.total;
+  const eta = running && progress?.rate ? formatEta(progress.total - progress.done, progress.rate) : "";
 
   const stages: Stage[] = [
     { key: "raw", label: "Loaded", value: funnel.raw, hint: "Rows accepted from the source." },
@@ -150,17 +155,37 @@ export function FunnelStrip({
         </div>
       )}
 
-      {progress && progress.total > 0 && progress.done < progress.total && (
+      {/* Announce only start and done. The changing numbers below are not in a live region. */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {running ? "Classification started" : summary ? formatClassified(summary.n, summary.ms) : ""}
+      </div>
+
+      {running && progress && (
         <div
-          className="px-4 py-1 text-sm"
+          className="flex flex-wrap items-baseline gap-x-3 px-4 py-1 text-sm"
           style={{ background: "var(--accent-weak)", color: "var(--accent)" }}
-          aria-live="polite"
-          aria-atomic="true"
         >
-          {progress.stage === "prefilter" ? "Filtering locally" : "Classifying"}{" "}
-          <span className="font-mono">
-            {count(progress.done)} of {count(progress.total)}
+          <span>
+            {progress.stage === "prefilter" ? "Filtering locally" : "Classifying"}{" "}
+            <span className="font-mono">
+              {count(progress.done)} of {count(progress.total)}
+            </span>
           </span>
+          {progress.rate ? (
+            <span className="font-mono" style={{ color: "var(--text-muted)" }}>
+              {formatRate(progress.rate)}
+              {eta ? `, ${eta}` : ""}
+            </span>
+          ) : null}
+        </div>
+      )}
+
+      {!running && summary && (
+        <div
+          className="px-4 py-1 font-mono text-sm"
+          style={{ background: "var(--surface-sunken)", color: "var(--text-muted)" }}
+        >
+          {formatClassified(summary.n, summary.ms)}
         </div>
       )}
     </section>
