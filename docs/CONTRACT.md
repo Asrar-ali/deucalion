@@ -44,7 +44,7 @@ Optional: `column` to force which CSV column holds the text.
 {
   "records": [{ "id": "r_001", "source": "csv", "text": "...", "labels": {}, "places": [], "review": "auto", "classifier": "jev" }],
   "profile": { "hazard": "flood", "places": ["Calgary", "High River"], "terms": ["flood", "water"], "userEdited": false },
-  "funnel": { "raw": 8024, "deduped": 7562, "prefiltered": 0, "relevant": 0, "mappable": 0, "noPlaceMentioned": 0, "rejectedRows": [] },
+  "funnel": { "raw": 8024, "deduped": 7460, "prefiltered": 0, "relevant": 0, "mappable": 0, "noPlaceMentioned": 0, "rejectedRows": [] },
   "detectedColumns": ["tweet"],
   "chosenColumn": "tweet"
 }

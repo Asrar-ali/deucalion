@@ -1,10 +1,10 @@
 {
   "raw": 8024,
-  "deduped": 7562,
-  "prefiltered": 4487,
-  "relevant": 3218,
-  "mappable": 906,
-  "noPlaceMentioned": 2312,
+  "deduped": 7460,
+  "prefiltered": 4168,
+  "relevant": 3748,
+  "mappable": 2276,
+  "noPlaceMentioned": 1472,
   "rejectedRows": [
     {
       "row": 412,

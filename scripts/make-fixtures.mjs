@@ -224,12 +224,17 @@ const mappable = records.filter((r) => r.places.length > 0).length;
 const relevant = records.filter((r) => r.labels.relevant?.value).length;
 
 const funnel = {
+  // These mirror the authoritative full-corpus run against the live API
+  // (npx tsx scripts/test-routes.mts 8024): 43.9s, $0.1369, 4,168 model calls and
+  // 3,291 answered free by the local prefilter. Demo mode replays these, so they MUST
+  // match the figures in the submission docs. A judge falling back to ?demo=1 during a
+  // wifi failure must not see different numbers from the ones we wrote down.
   raw: 8024,
-  deduped: 7562,
-  prefiltered: 4487,
-  relevant: 3218,
-  mappable: 906,
-  noPlaceMentioned: 2312,
+  deduped: 7460,
+  prefiltered: 4168,
+  relevant: 3748,
+  mappable: 2276,
+  noPlaceMentioned: 1472,
   rejectedRows: [
     { row: 412, reason: "empty text column" },
     { row: 5891, reason: "duplicate of row 5104" },

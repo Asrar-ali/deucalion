@@ -6,18 +6,21 @@
  * on our side" is a fact about the architecture rather than a promise. See ARCHITECTURE 6.
  */
 
+import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowSquareOut,
   Eye,
   TextAa,
+  Trash,
   WifiSlash,
   Warning,
   X,
 } from "@phosphor-icons/react/dist/ssr";
 
 import { CATEGORY_META, CATEGORY_ORDER, count, pct, usd } from "../lib/display";
+import { demoEventProfile, isDemoMode, replayDemo } from "../lib/demo";
 import { runClassify } from "../lib/stream";
 import type {
   Brief,
@@ -31,6 +34,10 @@ import type {
 import { FunnelStrip } from "./FunnelStrip";
 import { Intake, type IngestResult } from "./Intake";
 import { CategoryLegend, RecordsTable, type SortKey } from "./RecordsTable";
+
+/** The one key this app has ever written to localStorage. Kept in one place so the wipe
+ * control and the preference loader cannot drift apart. */
+const PREFS_KEY = "deucalion.prefs";
 
 // The map pulls in MapLibre and touches window on construction, so it must never render on
 // the server. Loading it lazily also keeps it out of the initial bundle for low-bandwidth mode.
@@ -86,11 +93,18 @@ export function Deucalion() {
   const [largeTouch, setLargeTouch] = useState(false);
   const [lowBandwidth, setLowBandwidth] = useState(false);
 
+  const [demoMode, setDemoMode] = useState(false);
+  const demoStarted = useRef(false);
+
+  const [wipeConfirming, setWipeConfirming] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const wipeButtonRef = useRef<HTMLButtonElement>(null);
+
   // Preferences live on <html> as data attributes so globals.css can act on them without any
   // JS in the render path. Reads are wrapped because storage throws in private windows.
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem("deucalion.prefs") ?? "{}") as Record<Pref, boolean>;
+      const saved = JSON.parse(localStorage.getItem(PREFS_KEY) ?? "{}") as Record<Pref, boolean>;
       if (saved.font) setLegible(true);
       if (saved.touch) setLargeTouch(true);
       if (saved.bandwidth) setLowBandwidth(true);
@@ -98,6 +112,9 @@ export function Deucalion() {
     } catch {
       setDark(window.matchMedia("(prefers-color-scheme: dark)").matches);
     }
+    // Read once on mount, same as every other preference above: the query string is only
+    // known client-side, so reading it during render would desync server and client HTML.
+    setDemoMode(isDemoMode(window.location.search));
   }, []);
 
   useEffect(() => {
@@ -111,7 +128,7 @@ export function Deucalion() {
     else delete root.dataset.bandwidth;
     try {
       localStorage.setItem(
-        "deucalion.prefs",
+        PREFS_KEY,
         JSON.stringify({ theme: dark, font: legible, touch: largeTouch, bandwidth: lowBandwidth }),
       );
     } catch {
@@ -122,6 +139,67 @@ export function Deucalion() {
   const notify = useCallback((message: string) => {
     setNotices((prev) => (prev.includes(message) ? prev : [...prev, message]));
   }, []);
+
+  // Demo mode replaces the network round trip with the bundled fixtures, replayed on a timer.
+  // Guarded by a ref rather than just the effect dependency array, because React can invoke
+  // effects twice in development and a paid classification run should never double, so the
+  // same discipline is kept here even though this path is free.
+  useEffect(() => {
+    if (!demoMode || demoStarted.current) return;
+    demoStarted.current = true;
+    setRecords([]);
+    setProfile(demoEventProfile());
+    setFunnel(null);
+    setClusters([]);
+    setBrief(null);
+    setSelectedId(null);
+    setIngestInfo(null);
+    setBusy(true);
+    void replayDemo({
+      onRecordBatch: (batch) => setRecords((prev) => [...prev, ...batch]),
+      onProgress: (done, total, stage) => setProgress({ done, total, stage }),
+      onFunnel: setFunnel,
+      onDone: (finalFunnel, finalClusters, finalBrief) => {
+        setFunnel(finalFunnel);
+        setClusters(finalClusters);
+        setBrief(finalBrief);
+        setProgress(null);
+        setBusy(false);
+        notify("Demo data loaded and replayed. Nothing here was classified live.");
+      },
+    });
+  }, [demoMode, notify]);
+
+  /**
+   * The destructive control the privacy claim demands: "nothing persists server-side and you
+   * stay in control" is only true in practice if a person can act on it. Clears every piece of
+   * working state plus the one key this app has ever written to localStorage.
+   */
+  const wipeEverything = useCallback(() => {
+    setRecords([]);
+    setProfile(null);
+    setFunnel(null);
+    setClusters([]);
+    setBrief(null);
+    setSelectedId(null);
+    setIngestInfo(null);
+    setSpend(null);
+    setModelVersion(null);
+    setProgress(null);
+    setBusy(false);
+    setFilters(DEFAULT_FILTERS);
+    try {
+      localStorage.removeItem(PREFS_KEY);
+    } catch {
+      // A blocked storage API leaves nothing behind to remove; either way there is nothing left.
+    }
+    setWipeConfirming(false);
+    setNotices([]);
+    notify("Everything has been wiped. No reports, summaries or saved preferences remain on this device.");
+    // Focus goes to the page heading, the one element guaranteed to still be there once the
+    // records, filters and brief panels have all disappeared from under the cursor.
+    headingRef.current?.focus();
+  }, [notify]);
 
   /** Ingest replaces the working set. Classification then streams labels onto it. */
   const onIngest = useCallback(
@@ -271,12 +349,28 @@ export function Deucalion() {
         style={{ borderColor: "var(--line)" }}
       >
         <div className="flex items-baseline gap-2">
-          <h1 className="text-sm font-semibold tracking-tight" style={{ color: "var(--text)" }}>
+          {/* tabIndex -1 makes this a legitimate focus target for the wipe control below,
+              without adding it to the normal tab order. */}
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-sm font-semibold tracking-tight"
+            style={{ color: "var(--text)" }}
+          >
             Deucalion
           </h1>
           <span className="text-[11px]" style={{ color: "var(--text-faint)" }}>
             the living flood map
           </span>
+          {demoMode && (
+            <span
+              className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] font-medium"
+              style={{ color: "var(--review)", background: "var(--review-weak)", borderRadius: "var(--radius)" }}
+            >
+              <Warning size={12} weight="bold" aria-hidden />
+              Demo data, no live classification
+            </span>
+          )}
         </div>
 
         {profile && (
@@ -424,24 +518,104 @@ export function Deucalion() {
       </main>
 
       <footer
-        className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t px-3 py-2 text-[10px]"
+        className="flex flex-col gap-2 border-t px-3 py-2 text-[10px]"
         style={{ borderColor: "var(--line)", color: "var(--text-faint)" }}
       >
-        <span>
-          Every label is a proposal with a confidence, not a verified fact. Nothing is stored on
-          the server.
-        </span>
-        {modelVersion && <span className="font-mono">{modelVersion}</span>}
-        <a
-          href="https://github.com/Asrar-ali/deucalion"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 underline"
-          style={{ color: "var(--text-muted)" }}
-        >
-          Source <ArrowSquareOut size={10} aria-hidden />
-        </a>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span>
+            Every label is a proposal with a confidence, not a verified fact. Nothing is stored on
+            the server.
+          </span>
+          {modelVersion && <span className="font-mono">{modelVersion}</span>}
+          <Link href="/accessibility" className="underline" style={{ color: "var(--text-muted)" }}>
+            Accessibility statement
+          </Link>
+          <a
+            href="https://github.com/Asrar-ali/deucalion"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 underline"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Source <ArrowSquareOut size={10} aria-hidden />
+          </a>
+        </div>
+
+        {/* Its own row, separated by a rule, so this destructive control is never one
+            accidental tab-and-enter away from Source or the theme toggles above. */}
+        <div className="flex flex-wrap items-center gap-2 border-t pt-2" style={{ borderColor: "var(--line)" }}>
+          {!wipeConfirming ? (
+            <button
+              ref={wipeButtonRef}
+              type="button"
+              onClick={() => setWipeConfirming(true)}
+              className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-medium"
+              style={{ color: "var(--urgent)", background: "var(--urgent-weak)", borderRadius: "var(--radius)" }}
+            >
+              <Trash size={12} weight="bold" aria-hidden />
+              Wipe everything
+            </button>
+          ) : (
+            <WipeConfirmPanel
+              onConfirm={wipeEverything}
+              onCancel={() => {
+                setWipeConfirming(false);
+                wipeButtonRef.current?.focus();
+              }}
+            />
+          )}
+        </div>
       </footer>
+    </div>
+  );
+}
+
+/**
+ * An inline panel, not window.confirm: a native modal blocks the rest of the page and is
+ * poorly supported by assistive tech. Cancel takes focus on open, so a keyboard user who
+ * reaches this by accident lands on the safe choice rather than the destructive one.
+ */
+function WipeConfirmPanel({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    cancelRef.current?.focus();
+  }, []);
+
+  return (
+    <div
+      role="alertdialog"
+      aria-labelledby="wipe-confirm-text"
+      className="flex flex-wrap items-center gap-2 rounded px-2 py-1.5"
+      style={{ background: "var(--urgent-weak)", borderRadius: "var(--radius)" }}
+    >
+      <Warning size={13} weight="bold" aria-hidden style={{ color: "var(--urgent)" }} />
+      <span id="wipe-confirm-text" style={{ color: "var(--urgent)" }}>
+        Clear every loaded report, summary and saved preference on this device. This cannot be
+        undone.
+      </span>
+      <button
+        type="button"
+        onClick={onConfirm}
+        className="rounded px-2 py-1 text-[10px] font-semibold"
+        style={{
+          color: "var(--urgent)",
+          background: "var(--surface-raised)",
+          border: "1px solid var(--urgent)",
+          borderRadius: "var(--radius)",
+        }}
+      >
+        Yes, wipe everything
+      </button>
+      <button
+        ref={cancelRef}
+        type="button"
+        onClick={onCancel}
+        className="rounded px-2 py-1 text-[10px]"
+        style={{ border: "1px solid var(--line-strong)", color: "var(--text)", borderRadius: "var(--radius)" }}
+      >
+        Cancel
+      </button>
     </div>
   );
 }

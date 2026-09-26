@@ -62,7 +62,7 @@ Never cut: CSV ingest, classification, map, funnel counts, deploy.
    comes, the first record of a submerged road is a post from someone standing in front of it.
    That record never reaches the people drawing the maps."
 2. **Load, 20s.** One click, the provided 8,024 rows. Funnel fills on screen.
-   "Eight thousand posts, classified in about thirty seconds, for roughly twenty cents."
+   "Eight thousand posts, classified in about forty-four seconds, for about fourteen cents."
 3. **Explore, 40s.** Filter to `access_blocked`. Map clusters. Click a point → the post, the
    confidence, the reason. "Every point tells you how it got here and how sure it is."
 4. **The Siksika beat, 30s.** "The dataset they gave us contains a First Nation."

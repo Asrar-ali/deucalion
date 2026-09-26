@@ -38,7 +38,7 @@ picture a community can operate itself — and hand the result to the GIS system
 | Property | Value |
 |---|---|
 | Rows | 8,024 |
-| Unique | 7,562 (462 exact duplicates) |
+| Unique | 7,460 (564 removed: 462 exact + retweets of the same body) |
 | Columns | 1 — `tweet` |
 | Length | min 17 / mean 104.8 / **max 147 (hard-truncated)** |
 | Event | 2013 Alberta floods |
@@ -81,9 +81,9 @@ Measured on the provided dataset (`npx tsx scripts/test-prefilter.ts`):
 ```
 8,024 raw
   → dedupe / normalize        7,460   (-564: 462 exact + retweets of the same body)
-  → local prefilter           4,074   candidates, 107ms, $0, 148 dropped as spam
-  → Jev typed decisions           ?   measured once the key is live
-  → geoparse + EXIF               ? + explicit "no place mentioned" count
+  → local prefilter           4,168   candidates, 107ms, $0, 148 dropped as spam
+  → Jev typed decisions        3,748   relevant, 43.9s and $0.1369 for the whole corpus
+  → geoparse + EXIF            2,276   mappable + 1,472 "no place mentioned"
 ```
 
 The prefilter halves the paid calls. Its threshold is deliberately generous: a false
@@ -124,9 +124,9 @@ Facts that constrain the implementation:
 - **Plain `fetch` client, not the vendor SDK.** `laya-serve` exposes this identical
   `/v1/systemone` shape, so the fallback is a base-URL swap. Coupling to the SDK throws that away.
 
-**Measured cost: $0.000021 per call at 4 questions (~500 input tokens), avg latency 287ms,
-model `typesafe/jev-1.13-20260917`. At 10 questions that is roughly $0.00004/call, so the
-4,074 prefiltered candidates cost about $0.16 and the full 8,024 about $0.31.**
+**Measured cost: ~$0.000033 per call at 4 questions (~500 input tokens), avg latency ~287ms,
+model `typesafe/jev-1.13-20260917`. Over the full corpus, the 4,168 candidates that reached
+the classifier took 43.9 seconds wall clock and cost $0.1369 total.**
 
 Token spend is dominated by the 9 question definitions repeating on every call. Terse
 `instructions` and `criteria` are a direct 2–3x cost lever.

@@ -23,7 +23,7 @@ const atkinson = Atkinson_Hyperlegible({
 });
 
 export const metadata: Metadata = {
-  title: "Deucalion — the living flood map",
+  title: "Deucalion: the living flood map",
   description:
     "Firsthand public posts about a flood, classified, mapped and auditable. Built for CE Strategies by Team Prometheus.",
 };
