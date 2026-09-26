@@ -312,8 +312,9 @@ export function Deucalion() {
         setBrief(finalBrief);
         setProgress(null);
         setBusy(false);
+        // One bar, not two: the header badge already says demo, and the ready banner below
+        // carries "nothing was classified live". A separate notice stacked a third bar on phones.
         setReadyBanner({ relevant: finalFunnel.relevant, mappable: finalFunnel.mappable });
-        notify("Demo data loaded and replayed. Nothing here was classified live.");
       },
     });
   }, [notify]);
@@ -694,10 +695,16 @@ export function Deucalion() {
         </div>
 
         {profile && (
-          <p className="w-full text-sm sm:w-auto" style={{ color: "var(--text-muted)" }}>
+          // Two places, and one truncated line from sm up: three full names ("Calgary, AB, High
+          // River, AB, Canmore, AB") pushed the preference toggles onto a second header row.
+          <p
+            className="w-full min-w-0 text-sm sm:w-auto sm:flex-1 sm:truncate"
+            style={{ color: "var(--text-muted)" }}
+            title={placeNames(profile.places).join("; ")}
+          >
             {profile.userEdited ? "Mapping:" : "Detected event:"}{" "}
             <strong style={{ color: "var(--text)" }}>{profile.hazard}</strong>
-            {placeNames(profile.places).length > 0 && <> near {placeNames(profile.places).slice(0, 3).join(", ")}</>}
+            {placeNames(profile.places).length > 0 && <> near {placeNames(profile.places).slice(0, 2).join(" and ")}</>}
           </p>
         )}
 
@@ -776,7 +783,7 @@ export function Deucalion() {
           {/* min-width forces the buttons onto their own row on phones instead of crushing
               this sentence into a one-word-wide column beside them. */}
           <span className="min-w-[16rem] flex-1">
-            Done. {count(readyBanner.relevant)} flood posts found, {count(readyBanner.mappable)} placed on the map.
+            {demoMode ? "Demo replay finished, nothing was classified live." : "Done."} {count(readyBanner.relevant)} flood posts found, {count(readyBanner.mappable)} placed on the map.
           </span>
           <button
             type="button"

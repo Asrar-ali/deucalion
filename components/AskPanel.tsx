@@ -214,7 +214,7 @@ export function AskPanel({
 
           {loading ? (
             <p className="mt-2 text-sm" aria-live="polite" style={{ color: "var(--text-muted)" }}>
-              Reading {readingCount} posts
+              Reading {readingCount} posts. Answers can take up to 30 seconds.
             </p>
           ) : null}
 
