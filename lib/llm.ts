@@ -310,3 +310,55 @@ export async function describeImageJson<T>(
 
   return null;
 }
+
+/**
+ * Text-only structured JSON via OpenRouter. The organizers' proxy is shared and its latency
+ * swings from 6 s to 90 s, so callers that need a snappy answer try this first and fall back
+ * to generateJson. Returns null on any failure.
+ */
+export async function generateJsonFast<T>(
+  prompt: string,
+  schema: unknown,
+  opts?: { timeoutMs?: number; model?: string },
+): Promise<T | null> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return null;
+  const model = opts?.model || process.env.ASK_MODEL || process.env.VISION_MODEL || "google/gemini-3.5-flash-lite";
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), opts?.timeoutMs ?? 12_000);
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: prompt }],
+        response_format: {
+          type: "json_schema",
+          json_schema: { name: "result", strict: true, schema: withNoExtraProps(schema) },
+        },
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const content = data.choices?.[0]?.message?.content;
+    return content ? (JSON.parse(content) as T) : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** Strict json_schema mode requires additionalProperties:false on every object. */
+function withNoExtraProps(schema: unknown): unknown {
+  if (Array.isArray(schema)) return schema.map(withNoExtraProps);
+  if (schema && typeof schema === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(schema as Record<string, unknown>)) out[k] = withNoExtraProps(v);
+    if (out.type === "object" && out.additionalProperties === undefined) out.additionalProperties = false;
+    return out;
+  }
+  return schema;
+}

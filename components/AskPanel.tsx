@@ -11,10 +11,10 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
-import { tokenize } from "../lib/prefilter";
+import { computeAskFacts, selectRecordsForQuestion } from "../lib/askFacts";
 import type { FloodRecord } from "../lib/types";
 
-const MAX_RECORDS = 200;
+const MAX_RECORDS = 60;
 
 const SUGGESTIONS = [
   "Which roads or bridges are reported closed?",
@@ -34,39 +34,8 @@ interface HistoryItem {
   question: string;
   sentences: AskSentence[];
   used: number;
-}
-
-/** Question words worth matching on: lowercased, longer than 3 characters, not stopwords. */
-function questionKeywords(question: string): Set<string> {
-  return new Set(tokenize(question).filter((w) => w.length > 3));
-}
-
-/** [keyword overlap, severity, relevance confidence] -- compared in that order, all desc. */
-function scoreRecord(keywords: Set<string>, record: FloodRecord): [number, number, number] {
-  const textTokens = tokenize(record.text);
-  let overlap = 0;
-  for (const t of textTokens) if (keywords.has(t)) overlap++;
-  const severity = record.labels.severity?.value ?? 0;
-  const confidence = record.labels.relevant?.confidence ?? 0;
-  return [overlap, severity, confidence];
-}
-
-/**
- * Up to 200 relevant records, ranked by keyword overlap with the question, then severity,
- * then relevance confidence. Always relevant-only: an irrelevant post is never a source for
- * an answer, no matter how well its words happen to match the question.
- */
-function selectRecords(question: string, records: FloodRecord[]): FloodRecord[] {
-  const keywords = questionKeywords(question);
-  const relevant = records.filter((r) => r.labels.relevant?.value === true);
-  return relevant
-    .map((r) => ({ r, score: scoreRecord(keywords, r) }))
-    .sort(
-      (a, b) =>
-        b.score[0] - a.score[0] || b.score[1] - a.score[1] || b.score[2] - a.score[2],
-    )
-    .slice(0, MAX_RECORDS)
-    .map((s) => s.r);
+  totalLoaded: number;
+  sources: Record<string, string>;
 }
 
 function newId(): string {
@@ -92,10 +61,19 @@ export function AskPanel({
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const errorRef = useRef<HTMLParagraphElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (error) errorRef.current?.focus();
   }, [error]);
+
+  // Keep the question in the box after an answer, selected so retyping replaces it.
+  useEffect(() => {
+    if (!loading && history.length > 0) {
+      textareaRef.current?.focus();
+      textareaRef.current?.select();
+    }
+  }, [loading, history.length]);
 
   const relevantRecords = useMemo(
     () => records.filter((r) => r.labels.relevant?.value === true),
@@ -110,7 +88,8 @@ export function AskPanel({
       return;
     }
 
-    const selected = selectRecords(q, records);
+    const selected = selectRecordsForQuestion(q, records, MAX_RECORDS);
+    const facts = computeAskFacts(q, records);
     setError(null);
     setLoading(true);
     setReadingCount(selected.length);
@@ -119,7 +98,7 @@ export function AskPanel({
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q, records: selected }),
+        body: JSON.stringify({ question: q, records: selected, facts }),
       });
       const data = await res.json().catch(() => null);
 
@@ -132,10 +111,16 @@ export function AskPanel({
       }
 
       setHistory((h) => [
-        { id: newId(), question: q, sentences: data.answer ?? [], used: data.used ?? selected.length },
+        {
+          id: newId(),
+          question: q,
+          sentences: data.answer ?? [],
+          used: data.used ?? selected.length,
+          totalLoaded: data.totalLoaded ?? records.length,
+          sources: data.sources ?? {},
+        },
         ...h,
       ]);
-      setQuestion("");
     } catch (err) {
       setError(
         err instanceof Error
@@ -178,6 +163,7 @@ export function AskPanel({
               Your question
             </label>
             <textarea
+              ref={textareaRef}
               id={questionId}
               name="question"
               autoComplete="off"
@@ -231,7 +217,7 @@ export function AskPanel({
           ) : null}
 
           <p className="mt-3 text-sm" style={{ color: "var(--text-muted)" }}>
-            Answers are written by a language model from at most 200 of the loaded posts. Every
+            Answers are written by a language model from the most relevant loaded posts. Totals and counts are computed exactly from every loaded post, not by the model. Every
             sentence links to the posts it came from; sentences without a source are removed.
             Questions and post text are sent to the event&apos;s Gemini service, which keeps logs.
           </p>
@@ -242,7 +228,7 @@ export function AskPanel({
                 <li key={item.id} className="pt-3" style={{ borderTop: "1px solid var(--line)" }}>
                   <p className="text-sm font-medium">{item.question}</p>
                   <p className="text-xs" style={{ color: "var(--text-faint)" }}>
-                    {item.used} posts read
+                    Read {item.used} most relevant posts of {item.totalLoaded} loaded
                   </p>
                   {item.sentences.length === 0 ? (
                     <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
@@ -258,11 +244,12 @@ export function AskPanel({
                               key={id}
                               type="button"
                               onClick={() => onSelectRecord(id)}
-                              aria-label={`Open cited post ${id}`}
-                              className="font-mono text-xs rounded px-1 ml-1 align-middle transition-colors hover:bg-[var(--accent-weak)]"
+                              aria-label={`Open cited post: ${item.sources[id] ?? id}`}
+                              title={item.sources[id] ?? id}
+                              className="text-xs rounded px-1 ml-1 align-middle transition-colors hover:bg-[var(--accent-weak)]"
                               style={{ border: "1px solid var(--line-strong)", color: "var(--accent)" }}
                             >
-                              {id}
+                              {item.sources[id] ?? id}
                             </button>
                           ))}
                         </li>
