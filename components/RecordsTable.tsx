@@ -9,7 +9,7 @@
  * tool that only works for sighted mouse users is not finished. See docs/ACCESSIBILITY.md.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { CaretDown, CaretUp, Image as ImageIcon, Link as LinkIcon, Microphone, Table } from "@phosphor-icons/react/dist/ssr";
 
 import { CATEGORY_META, count, severityBand } from "../lib/display";
@@ -50,6 +50,16 @@ export function RecordsTable({
   onSortChange: (sort: { key: SortKey; desc: boolean }) => void;
   totalBeforeFilter: number;
 }) {
+  // How many rows are actually mounted. Every row carries a gauge, tags and place chips, so
+  // mounting all of them costs about 30 DOM nodes apiece. A flood-focused world file has
+  // thousands of matching rows, so mounting every one on each streamed refresh is a lot of DOM
+  // (an estimate from the row markup, not a measured slowdown). Windowing the DOM keeps the cost
+  // constant whatever the file size. The rows shown are the top of the current sort, which by
+  // default is urgency, so what a responder needs first is what is on screen. The map still
+  // plots everything, and the count below says plainly how many rows are not yet shown.
+  const PAGE = 200;
+  const [limit, setLimit] = useState(PAGE);
+
   const sorted = useMemo(() => {
     const dir = sort.desc ? -1 : 1;
     const value = (r: FloodRecord): number | string => {
@@ -141,7 +151,7 @@ export function RecordsTable({
           </tr>
         </thead>
         <tbody>
-          {sorted.map((record) => {
+          {sorted.slice(0, limit).map((record) => {
             const selected = record.id === selectedId;
             const Icon = SOURCE_ICON[record.source] ?? Table;
             const community = record.places.find((p) => p.community)?.community;
@@ -292,6 +302,36 @@ export function RecordsTable({
           })}
         </tbody>
       </table>
+
+      {sorted.length > limit && (
+        <div
+          className="flex flex-wrap items-center gap-3 px-3 py-3 text-sm"
+          style={{ borderTop: "1px solid var(--line)", color: "var(--text-muted)" }}
+        >
+          {/* aria-live so a screen reader hears the new count after pressing a button. */}
+          <span aria-live="polite">
+            Showing {count(Math.min(limit, sorted.length))} of {count(sorted.length)} reports, in the
+            current sort order. The map shows all of them.
+          </span>
+          <button
+            type="button"
+            onClick={() => setLimit((n) => n + PAGE)}
+            className="rounded px-2.5 py-1"
+            style={{ border: "1px solid var(--line-strong)", color: "var(--text)", borderRadius: "var(--radius)" }}
+          >
+            Show {count(Math.min(PAGE, sorted.length - limit))} more
+          </button>
+          <button
+            type="button"
+            onClick={() => setLimit(sorted.length)}
+            className="rounded px-2.5 py-1"
+            style={{ border: "1px solid var(--line)", color: "var(--text-muted)", borderRadius: "var(--radius)" }}
+            title="Rendering thousands of rows can be slow. Use Export for the full data."
+          >
+            Show all
+          </button>
+        </div>
+      )}
     </div>
   );
 }

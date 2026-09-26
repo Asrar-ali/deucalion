@@ -268,11 +268,13 @@ export function Deucalion() {
       const byId = new Map(result.records.map((r) => [r.id, r]));
 
       // Records accumulate in the Map immediately, but React state is refreshed on a timer.
-      // Refreshing on every streamed batch is quadratic in the record count: each of ~1,300
-      // batches copied all 53,000 records and re-ran the filter, the community rollup, the map
-      // point rebuild and the table sort, which froze the tab on the world feed (Alberta's 7,000
-      // rows hid it, being ~50x less work). A few refreshes a second still looks live, and the
-      // flush in `finally` guarantees the final state is complete even if the run errors.
+      // Refreshing on every streamed batch is quadratic in the record count: on the 53,000-row
+      // world feed each of ~1,300 batches would copy all the records and re-run the filter, the
+      // community rollup, the map point rebuild and the table sort. That is an inference from the
+      // code, not a measured freeze: it was never timed in a visible tab (see the note in
+      // docs/SUBMISSION.md), but it is plainly wasted work either way. A few refreshes a second
+      // still looks live, and the flush in `finally` guarantees the final state is complete even
+      // if the run errors.
       let dirty = false;
       const flushRecords = () => {
         if (!dirty) return;

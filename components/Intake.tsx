@@ -83,18 +83,28 @@ export function Intake({
     }
   };
 
-  const loadSample = async () => {
+  const loadSample = async (path = "/sample/alberta-2013.csv", name = "alberta-2013.csv") => {
     if (onDemoLoad) {
       onDemoLoad();
       return;
     }
     setWorking("sample");
     try {
-      const res = await fetch("/sample/alberta-2013.csv");
+      const res = await fetch(path);
       if (!res.ok) throw new Error(`Sample not found (${res.status}).`);
-      const blob = await res.blob();
+      const file = new File([await res.blob()], name, { type: "text/csv" });
+
+      // The world feed is 6 MB, over the single-request limit, so it takes the same chunked path
+      // as any large upload. Going through it here means the one-click sample exercises the real
+      // large-file code, instead of a shortcut that a judge's own big file would never get.
+      if (file.size > CHUNK_THRESHOLD_BYTES) {
+        onIngest(await ingestLargeCsv(file, undefined, () => {}));
+        setWorking(null);
+        return;
+      }
+
       const form = new FormData();
-      form.set("file", new File([blob], "alberta-2013.csv", { type: "text/csv" }));
+      form.set("file", file);
       await post("sample", form);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Could not load the sample.");
@@ -242,13 +252,24 @@ export function Intake({
 
       <button
         type="button"
-        onClick={loadSample}
+        onClick={() => void loadSample()}
         disabled={disabled}
         className="flex items-center justify-center gap-2 rounded px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-50"
         style={{ background: "var(--accent)", color: "var(--accent-text)", borderRadius: "var(--radius)" }}
       >
         {working === "sample" ? <Spinner size={15} className="animate-spin" aria-hidden /> : <Play size={15} weight="fill" aria-hidden />}
         Load Alberta 2013 sample
+      </button>
+
+      <button
+        type="button"
+        onClick={() => void loadSample("/sample/bonus-global.csv", "bonus-global.csv")}
+        disabled={disabled}
+        className="flex items-center justify-center gap-2 rounded px-3 py-2 text-sm transition-opacity disabled:opacity-50"
+        style={{ border: "1px solid var(--line-strong)", color: "var(--text)", borderRadius: "var(--radius)" }}
+        title="61,159 posts about many kinds of disaster worldwide. Mixed files are focused on floods."
+      >
+        Load world feed (61,159 posts)
       </button>
 
       <div className="grid grid-cols-2 gap-2">
