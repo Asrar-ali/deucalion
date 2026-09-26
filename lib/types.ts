@@ -134,8 +134,13 @@ export interface SpendState {
 
 export interface Cluster {
   id: string;
-  /** Distinctive terms, extractive. Never model-generated. */
+  /** Clean prose name for the theme, safe to drop into a sentence. */
   label: string;
+  /**
+   * Terms that separate this cluster from the others, by smoothed log-odds. Extractive,
+   * never model-generated. Kept apart from `label` so briefs read as sentences.
+   */
+  terms?: string[];
   recordIds: string[];
   size: number;
   representativeIds: string[];
