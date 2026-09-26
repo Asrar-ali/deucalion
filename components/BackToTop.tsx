@@ -4,20 +4,29 @@ import { useEffect, useState, type RefObject } from "react";
 import { ArrowUp } from "@phosphor-icons/react/dist/ssr";
 
 /**
- * Floating "Back to top" button. A sentinel 1.5 viewport heights tall sits at the top of the
- * document; once it has fully scrolled out of view the button renders (so it is not in the tab
- * order otherwise). Activating it scrolls up and moves focus to the page heading.
+ * Floating "Back to top" button. Renders only after the user has scrolled 1.5 screens down, so it
+ * is not in the tab order otherwise. Activating it scrolls up and moves focus to the page heading.
  */
 export function BackToTop({ focusRef }: { focusRef: RefObject<HTMLElement | null> }) {
-  const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    if (!sentinel || typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(([e]) => setShow(!e.isIntersecting));
-    io.observe(sentinel);
-    return () => io.disconnect();
-  }, [sentinel]);
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      // Only worth showing once the user is well past the first screens of content.
+      setShow(window.scrollY > window.innerHeight * 1.5);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, []);
 
   const onClick = () => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -30,12 +39,6 @@ export function BackToTop({ focusRef }: { focusRef: RefObject<HTMLElement | null
 
   return (
     <>
-      <div
-        ref={setSentinel}
-        aria-hidden
-        className="pointer-events-none absolute left-0 top-0 w-px"
-        style={{ height: "150vh" }}
-      />
       {show && (
         <button
           type="button"
