@@ -77,13 +77,14 @@ export function FunnelStrip({
                 {count(stage.value)}
               </span>
               {i > 0 && stages[i - 1].value > 0 && (
-                <span className="font-mono text-[10px]" style={{ color: "var(--text-faint)" }}>
+                <span className="font-mono text-xs" style={{ color: "var(--text-faint)" }}>
                   {Math.round((stage.value / stages[i - 1].value) * 100)}%
                 </span>
               )}
             </div>
-            <div className="mt-0.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
+            <div className="mt-0.5 text-sm" style={{ color: "var(--text-muted)" }}>
               {stage.label}
+              <span className="sr-only">. {stage.hint}</span>
             </div>
             {/* Width encodes the drop-off, so the shape of the funnel is readable at a glance
                 without needing to compare five numbers. */}
@@ -100,10 +101,24 @@ export function FunnelStrip({
         ))}
       </ol>
 
+      {/* The stage meanings were only in hover titles; this makes them reachable by keyboard
+          and touch as well (ACCESSIBILITY.md: nothing hover-only). */}
+      <details className="border-t px-3 py-1 text-sm" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
+        <summary className="cursor-pointer">What do these numbers mean?</summary>
+        <dl className="mt-1 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 pb-1">
+          {stages.map((stage) => (
+            <div key={stage.key} className="contents">
+              <dt className="font-medium" style={{ color: "var(--text)" }}>{stage.label}</dt>
+              <dd>{stage.hint}</dd>
+            </div>
+          ))}
+        </dl>
+      </details>
+
       {/* The honest counter. Deliberately given the same visual weight as the funnel itself. */}
       {(funnel.noPlaceMentioned > 0 || funnel.rejectedRows.length > 0) && (
         <div
-          className="flex flex-wrap gap-x-5 gap-y-1 px-3 py-1.5 text-[11px]"
+          className="flex flex-wrap gap-x-5 gap-y-1 px-3 py-1.5 text-sm"
           style={{ background: "var(--surface-sunken)", color: "var(--text-muted)" }}
         >
           {funnel.noPlaceMentioned > 0 && (
@@ -122,7 +137,7 @@ export function FunnelStrip({
                 </strong>{" "}
                 rows skipped
               </summary>
-              <ul className="mt-1 max-h-32 overflow-auto font-mono text-[10px]">
+              <ul className="mt-1 max-h-32 overflow-auto font-mono text-xs">
                 {funnel.rejectedRows.slice(0, 50).map((r, i) => (
                   <li key={`${r.row}-${i}`}>
                     {r.row ? `row ${r.row}: ` : ""}
@@ -137,7 +152,7 @@ export function FunnelStrip({
 
       {progress && progress.total > 0 && progress.done < progress.total && (
         <div
-          className="px-3 py-1 text-[11px]"
+          className="px-3 py-1 text-sm"
           style={{ background: "var(--accent-weak)", color: "var(--accent)" }}
           aria-live="polite"
           aria-atomic="true"

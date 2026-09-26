@@ -196,6 +196,9 @@ export function FloodMap({
   // Whether the point set has ever been non-empty, so the initial-fit effect fires once per
   // empty-to-loaded transition rather than on every filter change.
   const hadPoints = useRef(false);
+  /** Point count at the last automatic fit, and whether the user has taken the camera since. */
+  const fitCount = useRef(0);
+  const userMoved = useRef(false);
 
   // One DOM marker per reserve, created once and repositioned/relabelled as data changes.
   const reserveMarkers = useRef<maplibregl.Marker[]>([]);
@@ -233,6 +236,10 @@ export function FloodMap({
     // MapLibre's own keyboard handler pans/zooms on these same arrow keys; our keyboard path
     // (below) moves between reports instead, so the built-in one would just fight it.
     instance.keyboard.disable();
+    // A drag, scroll or pinch carries an originalEvent; programmatic fits do not.
+    instance.on("movestart", (e) => {
+      if ((e as { originalEvent?: unknown }).originalEvent) userMoved.current = true;
+    });
 
     // Reserve labels are plain DOM markers, not a map layer, so they do not need to be rebuilt
     // on "style.load" -- only the source/layer that draws the rings does.
@@ -452,7 +459,15 @@ export function FloodMap({
   useEffect(() => {
     const instance = map.current;
     if (!instance || !ready) return;
-    if (points.length && !hadPoints.current) {
+    // Records stream in, so fitting only on the first point framed a single street. Refit as
+    // the set grows by half again, until the user takes the camera; reset per dataset.
+    if (!points.length) {
+      fitCount.current = 0;
+      userMoved.current = false;
+    }
+    const grew = fitCount.current === 0 || points.length >= fitCount.current * 1.5;
+    if (points.length && grew && !userMoved.current) {
+      fitCount.current = points.length;
       const lons = points.map((p) => p.lon);
       const lats = points.map((p) => p.lat);
       const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -491,6 +506,7 @@ export function FloodMap({
     if (!instance || !ready) return;
     instance.setFilter("selected", ["==", ["get", "id"], selectedId ?? "__none__"]);
     if (!selectedId) return;
+    userMoved.current = true;
     const hit = points.find((p) => p.id === selectedId);
     if (!hit) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -503,6 +519,7 @@ export function FloodMap({
   // the keyboard- and screen-reader-accessible path to a point that the mouse-only cluster
   // layer cannot offer on its own.
   function moveKeyboardFocus(index: number) {
+    userMoved.current = true;
     const instance = map.current;
     const pts = latestPoints.current;
     const point = pts[index];

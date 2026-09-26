@@ -115,7 +115,9 @@ export function RecordsTable({
   );
 
   return (
-    <div className="overflow-auto">
+    // relative: the sr-only spans in cells are position:absolute; without a positioned ancestor
+    // they escape this scroll box and widen the whole page on phones (horizontal scroll).
+    <div className="relative overflow-auto">
       <table className="w-full border-collapse text-sm">
         <caption className="sr-only">
           {count(records.length)} flood reports, sortable. Each row gives the report text, what it
@@ -200,7 +202,7 @@ export function RecordsTable({
                         style={{ border: "1px solid var(--line)" }}
                       />
                       {record.imageAlt && (
-                        <figcaption className="mt-0.5 text-[10px]" style={{ color: "var(--text-faint)" }}>
+                        <figcaption className="mt-0.5 text-sm" style={{ color: "var(--text-faint)" }}>
                           {record.imageAlt}
                         </figcaption>
                       )}
@@ -212,7 +214,7 @@ export function RecordsTable({
                     {community && <CommunityTag name={community.name} />}
                     {record.duplicateCount && record.duplicateCount > 1 && (
                       <span
-                        className="font-mono text-[10px]"
+                        className="font-mono text-sm"
                         style={{ color: "var(--text-faint)" }}
                         title="Identical or retweeted copies collapsed into this row."
                       >
@@ -224,7 +226,7 @@ export function RecordsTable({
                         href={record.provenance.sourceUrl}
                         target="_blank"
                         rel="noopener noreferrer nofollow"
-                        className="text-[10px] underline"
+                        className="text-sm underline"
                         style={{ color: "var(--accent)" }}
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -237,7 +239,7 @@ export function RecordsTable({
                 <td className="px-2 py-2">
                   <CategoryTag category={record.labels.category?.value} />
                   {record.labels.is_request?.value && (
-                    <div className="mt-1 text-[10px]" style={{ color: "var(--urgent)" }}>
+                    <div className="mt-1 text-sm" style={{ color: "var(--urgent)" }}>
                       asking for help
                     </div>
                   )}
@@ -252,7 +254,7 @@ export function RecordsTable({
                     <StaffGauge size="sm" gate={CONFIDENCE_GATE.relevant} view={relevantGauge} />
                     {relevantGauge.state === "below" && (
                       <span
-                        className="text-[10px] font-semibold px-1 py-0.5 rounded"
+                        className="text-sm font-semibold px-1 py-0.5 rounded"
                         style={{ background: "var(--review-weak)", color: "var(--text)" }}
                       >
                         Needs checking
@@ -261,7 +263,7 @@ export function RecordsTable({
                   </div>
                   {record.labels.relevant?.via && (
                     <div
-                      className="mt-0.5 text-[10px]"
+                      className="mt-0.5 text-sm"
                       style={{ color: "var(--text-faint)" }}
                       title="Which question carried the relevance decision."
                     >
@@ -280,7 +282,7 @@ export function RecordsTable({
                       ))}
                     </div>
                   ) : (
-                    <span className="text-[11px]" style={{ color: "var(--text-faint)" }}>
+                    <span className="text-sm" style={{ color: "var(--text-faint)" }}>
                       no place named
                     </span>
                   )}
@@ -297,7 +299,7 @@ export function RecordsTable({
 /** Legend, so colour and icon are never the only carriers of meaning. */
 export function CategoryLegend() {
   return (
-    <ul className="flex flex-wrap gap-x-3 gap-y-1 px-3 py-2 text-[11px]">
+    <ul className="flex flex-wrap gap-x-3 gap-y-1 px-3 py-2 text-sm">
       {Object.entries(CATEGORY_META).map(([key, meta]) => (
         <li key={key} className="flex items-center gap-1">
           <CategoryTag category={key as keyof typeof CATEGORY_META} />

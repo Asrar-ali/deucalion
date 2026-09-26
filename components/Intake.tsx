@@ -205,7 +205,7 @@ export function Intake({
 
   return (
     <section aria-labelledby="intake-heading" className="flex flex-col gap-3 p-3">
-      <h2 id="intake-heading" className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+      <h2 id="intake-heading" className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
         Add reports
       </h2>
 
@@ -241,7 +241,7 @@ export function Intake({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="paste" className="text-xs" style={{ color: "var(--text-muted)" }}>
+        <label htmlFor="paste" className="text-sm" style={{ color: "var(--text-muted)" }}>
           Paste a link or type a report
         </label>
         <div className="flex gap-1.5">
@@ -290,7 +290,7 @@ export function Intake({
             type="button"
             onClick={() => void submitPasted()}
             disabled={disabled || !pasted.trim()}
-            className="rounded px-2.5 text-sm disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded px-2.5 text-sm disabled:opacity-40"
             style={{
               border: "1px solid var(--line-strong)",
               color: "var(--text)",
@@ -302,12 +302,15 @@ export function Intake({
             ) : (
               <LinkIcon size={15} aria-hidden />
             )}
-            <span className="sr-only">Add</span>
+            <span className="text-sm">Add</span>
           </button>
         </div>
-        <p className="text-[10px]" style={{ color: "var(--text-faint)" }}>
+        <p className="text-xs" style={{ color: "var(--text-faint)" }}>
           X, Bluesky and Mastodon links resolve directly. Facebook, Instagram and Reddit block
           automated reading, so screenshot those and add the image.
+          {speechSupported && !lowBandwidth && (
+            <> Dictation uses your browser&apos;s speech service: Chrome sends the audio to Google.</>
+          )}
         </p>
       </div>
     </section>
@@ -338,7 +341,7 @@ function FileButton({
         type="button"
         onClick={() => input.current?.click()}
         disabled={disabled}
-        className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs disabled:opacity-50"
+        className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-sm disabled:opacity-50"
         style={{
           border: "1px solid var(--line-strong)",
           color: "var(--text)",
