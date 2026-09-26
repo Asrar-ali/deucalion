@@ -392,12 +392,12 @@ export function Deucalion() {
           >
             Deucalion
           </h1>
-          <span className="text-[11px]" style={{ color: "var(--text-faint)" }}>
+          <span className="text-sm" style={{ color: "var(--text-faint)" }}>
             the living flood map
           </span>
           {demoMode && (
             <span
-              className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] font-medium"
+              className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-sm font-medium"
               style={{ color: "var(--review)", background: "var(--review-weak)", borderRadius: "var(--radius)" }}
             >
               <Warning size={12} weight="bold" aria-hidden />
@@ -417,7 +417,7 @@ export function Deucalion() {
         <div className="ml-auto flex items-center gap-1">
           {spend && !spend.unlimited && (
             <span
-              className="font-mono text-[11px]"
+              className="font-mono text-sm"
               title={`Metered from the provider's own reported cost. Budget ${usd(spend.budget)} per session.`}
               style={{ color: "var(--text-muted)" }}
             >
@@ -445,7 +445,7 @@ export function Deucalion() {
           {notices.map((notice) => (
             <div
               key={notice}
-              className="flex items-start gap-2 px-3 py-1.5 text-[11px]"
+              className="flex items-start gap-2 px-3 py-1.5 text-sm"
               style={{ background: "var(--review-weak)", color: "var(--review)" }}
             >
               <Warning size={13} className="mt-0.5 shrink-0" aria-hidden />
@@ -500,7 +500,7 @@ export function Deucalion() {
           />
 
           {ingestInfo?.detectedColumns?.length ? (
-            <div className="border-t px-3 py-2 text-[11px]" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
+            <div className="border-t px-3 py-2 text-sm" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
               Read column{" "}
               <code style={{ color: "var(--text)" }}>{ingestInfo.chosenColumn}</code> from{" "}
               {ingestInfo.detectedColumns.length} column
@@ -525,6 +525,7 @@ export function Deucalion() {
               brief={brief}
               onSummarise={summarise}
               onDownload={download}
+              onSelectRecord={setSelectedId}
               onPickCluster={(cluster) =>
                 // Was a no-op (`|| true` kept every category). Show exactly the theme's posts.
                 setFilters((f) => ({ ...f, cluster: { label: cluster.label, ids: new Set(cluster.recordIds) } }))
@@ -580,7 +581,7 @@ export function Deucalion() {
       </main>
 
       <footer
-        className="flex flex-col gap-2 border-t px-3 py-2 text-[10px]"
+        className="flex flex-col gap-2 border-t px-3 py-2 text-sm"
         style={{ borderColor: "var(--line)", color: "var(--text-faint)" }}
       >
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -611,7 +612,7 @@ export function Deucalion() {
               ref={wipeButtonRef}
               type="button"
               onClick={() => setWipeConfirming(true)}
-              className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-medium"
+              className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-sm font-medium"
               style={{ color: "var(--urgent)", background: "var(--urgent-weak)", borderRadius: "var(--radius)" }}
             >
               <Trash size={12} weight="bold" aria-hidden />
@@ -659,7 +660,7 @@ function WipeConfirmPanel({ onConfirm, onCancel }: { onConfirm: () => void; onCa
       <button
         type="button"
         onClick={onConfirm}
-        className="rounded px-2 py-1 text-[10px] font-semibold"
+        className="rounded px-2 py-1 text-sm font-semibold"
         style={{
           color: "var(--urgent)",
           background: "var(--surface-raised)",
@@ -673,7 +674,7 @@ function WipeConfirmPanel({ onConfirm, onCancel }: { onConfirm: () => void; onCa
         ref={cancelRef}
         type="button"
         onClick={onCancel}
-        className="rounded px-2 py-1 text-[10px]"
+        className="rounded px-2 py-1 text-sm"
         style={{ border: "1px solid var(--line-strong)", color: "var(--text)", borderRadius: "var(--radius)" }}
       >
         Cancel
@@ -739,7 +740,7 @@ function FilterPanel({
         <h2 id="filters-heading" className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
           Filter
         </h2>
-        <span className="font-mono text-[10px]" style={{ color: "var(--text-faint)" }} aria-live="polite">
+        <span className="font-mono text-sm" style={{ color: "var(--text-faint)" }} aria-live="polite">
           {count(visibleCount)} of {count(relevantCount)}
         </span>
       </div>
@@ -765,12 +766,12 @@ function FilterPanel({
       </div>
 
       <fieldset>
-        <legend className="mb-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
+        <legend className="mb-1 text-sm" style={{ color: "var(--text-muted)" }}>
           Categories
         </legend>
         <div className="flex flex-col gap-1">
           {CATEGORY_ORDER.map((category) => (
-            <label key={category} className="flex items-center gap-2 text-[11px]">
+            <label key={category} className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
                 checked={filters.categories.has(category)}
@@ -783,7 +784,7 @@ function FilterPanel({
       </fieldset>
 
       <div>
-        <label htmlFor="conf" className="mb-1 block text-[11px]" style={{ color: "var(--text-muted)" }}>
+        <label htmlFor="conf" className="mb-1 block text-sm" style={{ color: "var(--text-muted)" }}>
           Minimum relevance confidence:{" "}
           <span className="font-mono" style={{ color: "var(--text)" }}>
             {pct(filters.minConfidence)}
@@ -803,7 +804,7 @@ function FilterPanel({
         />
       </div>
 
-      <div className="flex flex-col gap-1 text-[11px]">
+      <div className="flex flex-col gap-1 text-sm">
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -832,7 +833,7 @@ function FilterPanel({
 
       {communities.length > 0 && (
         <div>
-          <label htmlFor="community" className="mb-1 block text-[11px]" style={{ color: "var(--text-muted)" }}>
+          <label htmlFor="community" className="mb-1 block text-sm" style={{ color: "var(--text-muted)" }}>
             First Nations community
           </label>
           <select
@@ -865,12 +866,14 @@ function BriefPanel({
   brief,
   onSummarise,
   onDownload,
+  onSelectRecord,
 }: {
   clusters: Cluster[];
   brief: Brief | null;
   onSummarise: (withNarrative: boolean) => void;
   onDownload: (format: "geojson" | "csv" | "brief" | "sms") => void;
   onPickCluster: (cluster: Cluster) => void;
+  onSelectRecord: (id: string) => void;
 }) {
   const [plain, setPlain] = useState(false);
 
@@ -909,7 +912,7 @@ function BriefPanel({
         </div>
       ) : (
         <>
-          <p className="text-[11px] leading-relaxed" style={{ color: "var(--text)" }}>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text)" }}>
             {plain && brief.plainLanguage ? brief.plainLanguage : brief.extractive}
           </p>
 
@@ -919,7 +922,7 @@ function BriefPanel({
                 type="button"
                 onClick={() => setPlain((v) => !v)}
                 aria-pressed={plain}
-                className="rounded px-2 py-1 text-[10px]"
+                className="rounded px-2 py-1 text-sm"
                 style={{ border: "1px solid var(--line)", color: "var(--text-muted)", borderRadius: "var(--radius)" }}
               >
                 {plain ? "Full wording" : "Plain language"}
@@ -928,7 +931,7 @@ function BriefPanel({
             <button
               type="button"
               onClick={speak}
-              className="rounded px-2 py-1 text-[10px]"
+              className="rounded px-2 py-1 text-sm"
               style={{ border: "1px solid var(--line)", color: "var(--text-muted)", borderRadius: "var(--radius)" }}
             >
               Read aloud
@@ -938,14 +941,23 @@ function BriefPanel({
           {brief.narrative?.length ? (
             <ul className="flex flex-col gap-1.5">
               {brief.narrative.map((sentence, i) => (
-                <li key={i} className="text-[11px] leading-relaxed" style={{ color: "var(--text)" }}>
+                <li key={i} className="text-sm leading-relaxed" style={{ color: "var(--text)" }}>
                   {sentence.sentence}{" "}
-                  <span
-                    className="font-mono text-[9px]"
-                    style={{ color: "var(--accent)" }}
-                    title={`Cites records: ${sentence.citedRecordIds.join(", ")}`}
-                  >
-                    [{sentence.citedRecordIds.length} cited]
+                  {/* The citations are the audit claim, so they are visible, focusable chips that
+                      open the post, not a hover-only title. */}
+                  <span className="inline-flex flex-wrap gap-1 align-middle">
+                    {sentence.citedRecordIds.map((id) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => onSelectRecord(id)}
+                        aria-label={`Open cited post ${id}`}
+                        className="rounded px-1 font-mono text-xs"
+                        style={{ border: "1px solid var(--line-strong)", color: "var(--accent)" }}
+                      >
+                        {id}
+                      </button>
+                    ))}
                   </span>
                 </li>
               ))}
@@ -955,7 +967,7 @@ function BriefPanel({
           {clusters.length > 0 && (
             <ul className="flex flex-col gap-1">
               {clusters.map((cluster) => (
-                <li key={cluster.id} className="flex items-baseline justify-between gap-2 text-[11px]">
+                <li key={cluster.id} className="flex items-baseline justify-between gap-2 text-sm">
                   <span style={{ color: "var(--text)" }}>
                     {cluster.label}
                     {cluster.terms?.length ? (
@@ -978,7 +990,7 @@ function BriefPanel({
             key={format}
             type="button"
             onClick={() => onDownload(format)}
-            className="rounded px-2 py-1 text-[10px] uppercase"
+            className="rounded px-2 py-1 text-sm uppercase"
             style={{ border: "1px solid var(--line)", color: "var(--text-muted)", borderRadius: "var(--radius)" }}
             title={
               format === "geojson"
