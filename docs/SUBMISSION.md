@@ -3,294 +3,68 @@
 **Team Prometheus** · Thunder Bay AI Hackathon, 26 September 2026
 **Challenge:** the Living Flood Map, set by CE Strategies
 
----
-
-## For judges
-
 - **Deployed app:** `<DEPLOY_URL>`
 - **Repository:** https://github.com/Asrar-ali/deucalion
-- **Judge access code:** `<JUDGE_ACCESS_CODE>`. Enter it in the settings panel. It removes
-  the per-session processing budget, so you can load the full dataset, upload your own file
-  and re-run classification as many times as you need without being blocked mid-evaluation.
+- **Judge access code:** `<JUDGE_ACCESS_CODE>` (enter it in the settings panel)
 
-No login, no account, no server-side storage. Loading the sample dataset or uploading your
-own is the whole flow.
+## Pitch
 
----
+Deucalion is the living flood map for First Nations communities and emergency responders. It
+takes firsthand public posts, finds the ones about flooding, places them on an interactive map
+and lets people filter, read a summary and ask questions, with every answer cited to the posts
+behind it. Results export as GeoJSON and CSV for CE Strategies' platforms. No login, and
+nothing is stored on the server.
 
-## Inspiration
+## The challenge and our answer
 
-CE Strategies works with more than 90 First Nation communities across Thunder Bay and
-Winnipeg, and owns MapAki, a web-GIS product those communities already use. Their brief was
-direct: flood sensors and satellite imagery miss what is happening on the ground. A submerged
-road, an impassable bridge, an elder's home taking on water, is usually documented first by a
-community member on social media, hours before any official sensor registers it. That
-firsthand record sits apart from the GIS layers decision-makers rely on.
+Sensors and satellites miss what is happening on the ground. A submerged road or an elder's
+home taking on water is usually documented first by a person on social media. We built the
+missing layer.
 
-We named the project Deucalion. In the myth, Prometheus warned his son Deucalion that the
-flood was coming, and Deucalion survived because he was told in time. A sensor tells you
-afterwards. A person standing in front of the water tells you now, if anyone is listening.
+- Accept a CSV, provided or uploaded by a judge: done, plus text, links and photos.
+- Classify each record as flood-related or not: done, with a confidence on every one.
+- Explore with filters and a summary: done, with a question box that cites its sources.
+- Extract places and plot them on an interactive map: done, including First Nations reserves.
+- Deployed online: done.
 
-The provided practice dataset, 8,024 posts from the 2013 Alberta floods, contains 30 posts
-tagged `#siksika`. A First Nation was already in the data we were handed. We treated that as
-the thread connecting a generic tweet-classification exercise to the sponsor's actual mission,
-and built toward it rather than around it.
+## The demo, in 90 seconds
 
-## What it does
+1. **Alberta sample (0:00 to 0:45).** Load the Alberta 2013 sample. Posts stream in and the
+   map fills live. Filter by category, open a post, read the summary, ask a question and
+   follow the citations.
+2. **World feed (0:45 to 1:30).** Load the 61,159-row worldwide file covering many disasters.
+   Deucalion says the file is mixed and focuses on floods. Zoom from the world view into a
+   region, then export the layer.
 
-Deucalion takes firsthand public posts about a hazard event and turns them into an auditable,
-mappable, accessible picture, then hands the result to the GIS system a community already
-uses.
+## Judging criteria
 
-Four front doors feed one pipeline: CSV upload (the provided dataset, or any file a judge
-uploads), photo or drone image, a pasted link or block of text, and voice. Every door produces
-the same record shape, so the map, table, filters and summaries never need to know where a
-record came from.
+**Accuracy and speed**
+- The 61,159-row world file processes in about 20 to 40 seconds end to end.
+- About 11,000 posts go to the model, at roughly $0.37 for the full run.
+- In a random sample of 30 mapped flood posts, 27 were clearly about flooding.
+- Exact counts in Ask are computed in code over all loaded posts, not estimated by the model.
 
-From there:
+**UI and UX**
+- Every stage of the funnel is shown as a count, so nothing is dropped silently.
+- Results are cached in the browser, so a repeat load is instant and free.
+- Dark theme, legible font, large touch targets and a low-data mode for weak connections.
 
-1. A **local, free prefilter** removes duplicates and obvious spam before anything is sent to
-   a paid model.
-2. A **typed classifier** (Jev, via OpenRouter) decides whether each remaining post is
-   relevant to the detected hazard, what category it falls into (access blocked, evacuation,
-   rescue request, damage, aid, advisory, sentiment), whether it names a place, whether it
-   contains personal information, and whether the author is reporting firsthand or resharing
-   news. Every answer carries a confidence.
-3. A **bundled gazetteer** extracts place names, including First Nations reserve polygons,
-   with no geocoding API and no network call.
-4. The result renders on an interactive map and in an identical sortable table (the map's
-   text equivalent, not a lesser fallback), with a funnel strip showing raw, deduplicated,
-   prefiltered, relevant, mapped and "mentions no place" counts, so nothing is silently
-   dropped.
-5. **Export** produces a GeoJSON layer built for MapAki, a CSV, a Markdown brief and an
-   SMS-length digest for anyone without a smartphone.
+**Interesting features**
+- Four ways in: CSV, pasted text or link, photos, and speech.
+- A ring layer marks First Nations communities across Canada.
+- A file that mixes many disasters is handled by focusing on floods and saying so.
+- Exports for CE Strategies: GeoJSON, CSV and a short brief.
 
-The classifier is swappable: it speaks a fixed wire protocol, so moving from hosted Jev to a
-self-hosted open-weights model is a base-URL change, not a rewrite.
+**Relevance**
+- Built for the communities CE Strategies serves, with First Nations reserves in the gazetteer.
+- Keyboard operable, skip link, screen reader friendly, with an accessibility statement page.
+- Nothing is stored on the server, so data control stays with the user.
+- Every result is a proposal with a confidence, so people decide what to act on.
 
-## How we built it
+## Next
 
-Two builders, one day, a contract frozen before either of us wrote UI or pipeline code. The
-seam was `docs/CONTRACT.md` and a set of fixtures: one of us owned `lib/` and the API routes,
-the other owned the interface, and neither blocked on the other after the fixtures shipped.
+Connecting to CE Strategies' flood models through the CSV and GeoJSON export.
 
-The relevance question was the one piece of the product we refused to guess at. We scored
-candidate phrasings against hand-labelled rows from the provided dataset. Naming the event's
-place inside the question ("about the ongoing flood emergency in Calgary, High River") made
-separation between relevant and irrelevant posts worse, not better, because a real headline
-about the same flood that did not happen to name Calgary got hedged down. Splitting the
-question in two, one asking about the hazard itself and one asking about the response
-(evacuation, rescue, shelter, closure, relief), and taking the maximum of the two, moved
-separation from 0.010 to 0.700 with nothing forced into a review queue. Posts like "mandatory
-evacuation order issued in Medicine Hat" or "Red Cross reception centre is open" often never
-say the word flood at all, and a single overloaded question was losing exactly the operational
-reports a responder needs.
+## Team
 
-The geoparser works the same way in spirit: no geocoding API, so no key for a judge to trip
-over, no rate limit, and it keeps working offline. It resolves landmark aliases, place names
-hidden inside hashtag compounds, and disambiguates a name like Millennium Park by
-co-occurring context, surfacing First Nations communities without ever being asked to look for
-them specifically.
-
-We treated the test scripts as part of the submission, not as scaffolding to delete before
-judging: `scripts/test-prefilter.ts` measures the real funnel on the provided dataset and
-fails the run if a hand-picked, obviously-relevant post (a bridge under water, an active
-evacuation) would be dropped. `scripts/test-geoparse.ts` runs eleven cases plus a full-corpus
-mappability measurement. `scripts/test-csv-edges.mts` runs 29 cases against encodings,
-delimiters, ragged rows and formula injection, because a judge's file is one we have never
-seen. `scripts/test-export.mts` checks that a PII-flagged record never exports its original
-text and that the generated brief contains none of our banned phrases. `scripts/test-image-path.mts`
-exists specifically because of a bug described below.
-
-## Challenges we ran into
-
-**A word boundary silently discarded the most obviously relevant rows in the dataset.** Our
-first hazard-detection regex used `\bflood` to match the word "flood" only at a word boundary.
-The provided dataset's dominant tags are `#yycflood` and `#abflood`, hashtag compounds with no
-boundary between "yyc" and "flood". `\bflood` cannot match inside `#yycflood`. That one detail
-silently discarded the 3,192 most obviously relevant rows in the corpus, and it would have
-happened quietly, with no error and no crash, if we had not measured the funnel and noticed
-the number looked wrong.
-
-**A per-file guess about the hazard silently dropped real flood posts.** The prefilter scored
-every post against one hazard, the one detected for the whole corpus. On the bonus world feed,
-detection returns "storm", because storm vocabulary outnumbers flood vocabulary. Genuine flood
-posts then scored 0.08 against a 0.15 threshold and were dropped before they reached the
-classifier, with no error. One real row, "RT @newscientist: Climate change blamed as #Australia
-lurches from fire to flood ... #extremeweather", scored 0.08. It now scores 0.73. The same run
-exposed a second bug: place ranking used substring matching, so short aliases like "yxe" and
-"hwy 2" matched inside unrelated text, and the flood view's header read "near victoria,
-winnipeg, houston, morley, hwy 2, yxe". It now matches on word boundaries.
-
-**The image front door dropped records with no error.** Image records carry no text until
-vision fills it in, and our text-based prefilter treated empty text as nothing to check. Image
-rows were silently removed at the prefilter stage and never streamed back to the client, which
-then waited indefinitely for rows that would never arrive. `scripts/test-image-path.mts` now
-asserts, as an explicit invariant, that every record posted to `/api/classify` comes back,
-whatever door it entered through and whether or not vision is available.
-
-**A redirect-following hole in the link resolver.** `fetch()` follows redirects by default.
-A public-looking URL can answer with a redirect to `http://169.254.169.254/...` (a cloud
-metadata endpoint) or to `127.0.0.1`, and the response body would come straight back to
-whoever asked for it. We now follow redirects manually, capped at three hops, and re-run the
-private-address check (loopback, `.local`, RFC 1918 ranges) on every single hop, not just the
-first request.
-
-**MapLibre's worker did not resolve under the bundler, and the map rendered blank.** MapLibre
-6 ships its web worker as a separate module, located relative to `import.meta.url`. Next's
-bundler moves the main chunk into its own build output but does not carry the worker file
-along with it, so the worker 404s silently and the map area stays empty with no visible error.
-Both of us hit this independently, on our own machines, within about an hour of each other,
-and both arrived at the same fix: copy the worker file into `public/` before every dev server
-and build, and point MapLibre at that stable path. Two people solving the same bug the same
-way in under an hour said more about how sharp that particular edge is than either of our
-individual debugging sessions did.
-
-## Bonus round: a world feed of many disasters
-
-**What the task asks.** CE Strategies' bonus round supplies a new CSV of tweets about
-disasters from all over the world, covering several disaster types, not floods alone. The job
-is to find and visualize only the flood-related tweets, on a world map rather than a regional
-one, with the same interaction as the original solution so a user can explore flood activity
-across countries and regions.
-
-**The file.** 61,159 rows, one `tweet` column. After removing exact duplicates and retweets of
-the same body, roughly 53,000 unique posts remain.
-
-**The bug it exposed.** Everything upstream of the classifier had been built around one event
-per file. The prefilter detected a single hazard for the whole corpus and scored every post
-against it. On this file that hazard is "storm", so flood posts were scored against storm
-vocabulary, landed at 0.08 against a 0.15 threshold, and were dropped without an error. It is
-the same failure shape as the word-boundary bug on the Alberta file: a quiet guess that removes
-the rows we most want, found by checking which real flood rows did not survive the funnel.
-
-**The fix.**
-
-- The prefilter now measures the hazard mix instead of picking one. A file is "mixed" when two
-  or more hazards each hold at least 15% of the hazard mentions.
-- For a mixed file the pipeline focuses on flood deliberately, and the interface says so in a
-  message beside the results. It does not pretend the file was about floods.
-- An explicit "What to map: flooding only" choice, built by the other team member, works
-  alongside this and takes priority when set.
-- Once flood is the target, the prefilter stops giving credit to other hazards' vocabulary.
-  On the current test run that cut the posts sent to the paid classifier from 24,488 to
-  11,199 out of 53,242 unique posts.
-- A hazard filter in the interface still lets a user see the other disasters, so the
-  flood-only default hides nothing permanently.
-- The bundled gazetteer grew from 104 to 165 places to cover the flood regions in this feed.
-  There is still no geocoding API.
-- Place ranking now uses word boundaries, which fixed the nonsense in the flood view's header.
-
-**The hazard mix, measured by keyword mentions on unique posts.**
-
-| File | Flood | Fire | Storm | Quake |
-|---|---|---|---|---|
-| Alberta 2013 (single event) | 97% | 3% | under 1% | under 1% |
-| World feed (mixed) | 32% | 8% | 53% | 8% |
-
-**Where the flood posts are.** By keyword on the world feed, about 6,250 posts (duplicates
-included) match flood vocabulary. Queensland and Australia account for 4,642, Colorado 791 and
-the Philippines 418. The Hurricane Sandy area (New York, New Jersey) has 62, Sardinia and Italy
-59, Thailand and Indonesia 11, India and Pakistan 10, and Alberta 4. Bangladesh has 0. The
-feed is dominated by a few events, so the world map is dense in a few places and sparse
-elsewhere. That is what the data says, not a rendering choice.
-
-**Bangladesh.** 924 posts name Bangladesh. 617 of them are about a building collapse. None
-mention flooding. It stays off the flood map, which is the right result.
-
-**Limits specific to this round.**
-
-- The end-to-end wall-clock time and dollar cost of classifying the whole world feed have not
-  been measured. No complete run has been observed. The only timing we have is server-side: one
-  2,500-record classify batch took 6.0 seconds and streamed 1.19 MB in 2,576 frames, and a
-  full run is 22 such batches.
-- Browser responsiveness on the roughly 53,000-row file is untested. It has not been checked
-  in a visible browser tab. The chunked browser path reports 53,600 unique posts against the
-  server's 53,242, because chunked deduplication differs slightly.
-- There is no labelled ground truth for this file, so we state no precision or recall for the
-  flood filter. The place counts above are keyword matches, not classifications.
-- The flood-only default is a choice, not a detection. The interface says the file mixes
-  several disasters so nobody reads the map as a picture of the whole feed.
-
-## Accomplishments we're proud of
-
-- A relevance question tuned by measurement against hand-labelled data, not by intuition,
-  with the actual numbers kept in the codebase (`lib/questions.ts`) as documentation of why it
-  is shaped the way it is.
-- A funnel that shows every stage, including the count of relevant posts that name no place at
-  all, so the map's silence about a post is a disclosed fact rather than a hidden gap.
-- A geoparser that surfaced a First Nation community from the data without being told to look
-  for one, using nothing but a bundled, offline gazetteer.
-- A test suite that treats a judge's unseen file as the normal case, not the edge case, and
-  that turned three real production bugs (the word boundary, the image path, the redirect
-  hole) into permanent, named regression tests instead of fixes we simply remembered to make.
-- No server-side persistence, by design, not by omission, because the communities this project
-  is meant to serve should own their own data.
-
-## What we learned
-
-The cheapest-looking mistakes cost the most. A missing word boundary in a regular expression
-is a one-character bug, and it silently discarded the 3,192 most obviously relevant rows in an
-8,024-row dataset without throwing a single error. The only reason we caught it was that we
-had already committed to printing the funnel counts out loud at every stage, so a number that
-should have been large looked suspiciously small.
-
-Confidence from a model like this is a routing signal, not a measurement. This model family
-returns very high, occasionally exactly 1.000, confidence on clear-cut rows, and we have no
-labelled ground truth for this specific event to calibrate against. We chose to present
-confidence as relative, useful for deciding what needs a human look and what does not, and
-refused to describe it as accuracy.
-
-And a genuinely small decision, splitting one classification question into two and taking the
-max, moved measured separation from 0.010 to 0.700, further than any single change in prompt
-wording did on its own. The biggest single improvement in the whole project was structural,
-not verbal.
-
-## What's next
-
-- Validation against labelled ground truth for a specific real event, with a domain expert,
-  before anyone would be asked to trust this in an actual emergency.
-- A community data-sharing agreement with a First Nation partner, worked out with them, not
-  handed to them, before any live deployment.
-- Load testing beyond a single judge's session.
-- A fluent-speaker validation pass before shipping any Anishinaabemowin or Oji-Cree interface
-  labels; we deliberately shipped none rather than guess with machine translation.
-- Reddit and Meta ingestion, blocked today only by credentials we do not have, not by
-  anything architectural.
-- A formal accessibility audit with a screen-reader user in the loop, to replace the
-  self-assessment this submission currently relies on.
-
----
-
-## Honest limits
-
-This section exists because the honest version of this project is more useful to CE
-Strategies than an inflated one.
-
-- **Every label is a proposal with a confidence attached, never a verified fact.** Nothing in
-  this system is described as verified or confirmed. A judge should read every classification
-  as "the model estimated this with confidence X," not as ground truth.
-- **This system reports on posts, not on people.** No number in this project, in the app or in
-  this document, states a count of people affected by anything. We have a count of posts.
-- **No timestamps exist in the provided dataset**, so there is no temporal spread to show on
-  it. A date column in an uploaded file is supported. Nothing is faked to simulate one.
-- **Location coverage is partial by nature.** On the real funnel run, roughly 1,472 posts
-  classified relevant named no place at all, and that number is displayed in the funnel, not
-  hidden from it.
-- **Reddit and Meta both need API credentials this project does not have.** That is stated
-  plainly, not worked around with a scraper.
-- **Every `t.co` link in the provided dataset is dead**, because the dataset is from 2013.
-  Link resolution in the demo is shown against a live post, not a row from the file.
-- **No labelled ground truth exists for the 2013 Alberta event**, so confidence is presented
-  as a relative signal for routing and review, never as a calibrated accuracy figure, and this
-  submission never states a bare accuracy percentage.
-- **The bonus world feed is not fully measured.** No complete classification run of it has
-  been observed, so its total time and cost are unknown, and browser responsiveness on a file
-  of roughly 53,000 posts is untested. We state no accuracy, precision or recall for the flood
-  filter on it.
-- **Accessibility here is a self-assessment.** There has been no formal audit and no
-  screen-reader user in the loop. The known gaps are listed in full in
-  `docs/ACCESSIBILITY.md`.
-- **This is batch processing over a provided corpus, not a real-time system,** and we would
-  not describe it as ready to deploy in an active emergency tomorrow. It is decision support
-  with a human expected in the loop, not a replacement for one.
+Team Prometheus, two builders: Asrar Ali and Huzaifa Muaz.
