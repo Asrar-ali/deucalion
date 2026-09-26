@@ -167,7 +167,7 @@ records.push({
   id: "r_049",
   source: "image",
   text: "Photo submitted from the ground. Water over the deck of the bridge.",
-  imageRef: "/sample/demo-bridge.jpg",
+  // No imageRef: public/sample/demo-bridge.jpg was never added, so every demo load 404d.
   imageAlt:
     "Brown floodwater covering a two-lane concrete bridge deck, guardrail partly submerged, overcast sky.",
   timestamp: "2013-06-21T14:12:00Z",

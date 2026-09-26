@@ -21,6 +21,7 @@ import {
   TextAa,
   Trash,
   WifiSlash,
+  Info,
   HandPointing,
   Warning,
   X,
@@ -138,7 +139,9 @@ export function Deucalion() {
   const [classifiedSummary, setClassifiedSummary] = useState<{ n: number; ms: number } | null>(null);
   const rateRef = useRef({ t0: 0, t: 0, done: 0, ema: 0 });
   const [modelVersion, setModelVersion] = useState<string | null>(null);
-  const [notices, setNotices] = useState<string[]>([]);
+  // Tone matters: "came from this browser cache (no cost)" is good news and was shown with the
+  // same yellow warning style as a failed export.
+  const [notices, setNotices] = useState<Array<{ text: string; tone: "info" | "warn" }>>([]);
   const [busy, setBusy] = useState(false);
   const [ingestInfo, setIngestInfo] = useState<IngestResult | null>(null);
 
@@ -283,8 +286,8 @@ export function Deucalion() {
     }
   }, [dark, legible, largeTouch, lowBandwidth]);
 
-  const notify = useCallback((message: string) => {
-    setNotices((prev) => (prev.includes(message) ? prev : [...prev, message]));
+  const notify = useCallback((message: string, tone: "info" | "warn" = "warn") => {
+    setNotices((prev) => (prev.some((n) => n.text === message) ? prev : [...prev, { text: message, tone }]));
   }, []);
 
   // Demo mode replaces the network round trip with the bundled fixtures, replayed on a timer.
@@ -358,7 +361,7 @@ export function Deucalion() {
     void browserStore.clear();
     setWipeConfirming(false);
     setNotices([]);
-    notify("Everything has been wiped. No reports, summaries, saved results or saved preferences remain on this device.");
+    notify("Everything has been wiped. No reports, summaries, saved results or saved preferences remain on this device.", "info");
     // Focus goes to the page heading, the one element guaranteed to still be there once the
     // records, filters and brief panels have all disappeared from under the cursor.
     headingRef.current?.focus();
@@ -367,6 +370,9 @@ export function Deucalion() {
   /** Ingest replaces the working set. Classification then streams labels onto it. */
   const onIngest = useCallback(
     async (result: IngestResult) => {
+      // A new load starts clean: notices from the previous file ("42 posts came from cache")
+      // stayed on screen and described data that was no longer loaded.
+      setNotices([]);
       // "Flooding only" pins the hazard before classification, so the relevance question asks
       // about floods. On a mixed-disaster file the corpus detector picks storm or "other",
       // and every disaster would then count as relevant.
@@ -433,6 +439,7 @@ export function Deucalion() {
           }
           notify(
             `${part.hits.length} ${part.hits.length === 1 ? "post" : "posts"} came from this browser's cache (no cost).`,
+            "info",
           );
         }
       }
@@ -767,15 +774,23 @@ export function Deucalion() {
         <div role="status" aria-live="polite" className="flex flex-col">
           {notices.map((notice) => (
             <div
-              key={notice}
+              key={notice.text}
               className="flex items-start gap-2 px-4 py-1.5 text-sm"
-              style={{ background: "var(--review-weak)", color: "var(--review)" }}
+              style={
+                notice.tone === "info"
+                  ? { background: "var(--surface-sunken)", color: "var(--text)" }
+                  : { background: "var(--review-weak)", color: "var(--review)" }
+              }
             >
-              <Warning size={13} className="mt-0.5 shrink-0" aria-hidden />
-              <span className="flex-1">{notice}</span>
+              {notice.tone === "info" ? (
+                <Info size={13} className="mt-0.5 shrink-0" aria-hidden />
+              ) : (
+                <Warning size={13} className="mt-0.5 shrink-0" aria-hidden />
+              )}
+              <span className="flex-1">{notice.text}</span>
               <button
                 type="button"
-                onClick={() => setNotices((prev) => prev.filter((n) => n !== notice))}
+                onClick={() => setNotices((prev) => prev.filter((n) => n.text !== notice.text))}
                 aria-label="Dismiss"
                 className="shrink-0 hover:opacity-70"
               >
@@ -795,7 +810,19 @@ export function Deucalion() {
           {/* min-width forces the buttons onto their own row on phones instead of crushing
               this sentence into a one-word-wide column beside them. */}
           <span className="min-w-[16rem] flex-1">
-            {demoMode ? "Demo replay finished, nothing was classified live." : "Done."} {count(readyBanner.relevant)} flood posts found, {count(readyBanner.mappable)} placed on the map.
+            {readyBanner.relevant === 0 ? (
+              // "Done. 0 posts found" gave a dead end on a wrong or unreadable file; say what to try.
+              <>
+                Done, but none of these posts were classified as relevant. Check that the file has a
+                column of post text, or on Load data choose what to map and load it again.
+              </>
+            ) : (
+              <>
+                {demoMode ? "Demo replay finished, nothing was classified live." : "Done."} {count(readyBanner.relevant)}{" "}
+                {/* The unseen judging file may not be a flood: name the detected hazard, not a constant. */}
+                {profile?.hazard === "flood" ? "flood" : profile?.hazard === "other" || !profile ? "relevant" : profile.hazard} posts found, {count(readyBanner.mappable)} placed on the map.
+              </>
+            )}
           </span>
           <button
             type="button"
@@ -1156,7 +1183,7 @@ export function Deucalion() {
               type="button"
               onClick={async () => {
                 await browserStore.clear();
-                notify("Saved results cleared from this browser.");
+                notify("Saved results cleared from this browser.", "info");
               }}
               className="rounded px-2 py-1 text-sm underline"
               style={{ color: "var(--text-muted)" }}
