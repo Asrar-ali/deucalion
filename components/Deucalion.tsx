@@ -550,6 +550,62 @@ export function Deucalion() {
     [notify, focus],
   );
 
+  /**
+   * A pasted link, typed or dictated report, or photo is ADDED to what is loaded. It used to
+   * go through onIngest, which replaced the whole working set: paste one link and the 8,000
+   * posts on the map vanished, leaving one dot (demo step 5). It is classified against the
+   * current event, merged in, and selected, so the map flies to it and the detail panel shows
+   * where it was placed, or that it names no place.
+   */
+  const onAdd = useCallback(
+    async (result: IngestResult) => {
+      if (!records.length || !profile) {
+        await onIngest(result);
+        return;
+      }
+      const added = result.records;
+      if (!added.length) return;
+      setBusy(true);
+      setRecords((prev) => [...prev, ...added]);
+      await runClassify(
+        { records: added, profile },
+        {
+          onRecordBatch: (batch) => {
+            const byId = new Map(batch.map((r) => [r.id, r]));
+            setRecords((prev) => prev.map((r) => byId.get(r.id) ?? r));
+          },
+          onSpend: setSpend,
+          onDegraded: (_reason, message) => notify(message),
+          onError: notify,
+          onDone: (f, s) => {
+            setSpend(s);
+            setFunnel((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    raw: prev.raw + added.length,
+                    deduped: prev.deduped + added.length,
+                    prefiltered: prev.prefiltered + f.prefiltered,
+                    relevant: prev.relevant + f.relevant,
+                    mappable: prev.mappable + f.mappable,
+                    noPlaceMentioned: prev.noPlaceMentioned + f.noPlaceMentioned,
+                  }
+                : f,
+            );
+          },
+        },
+      );
+      setBusy(false);
+      setSelectedId(added[0].id);
+      setView("map");
+      notify(
+        added.length === 1 ? "Your report was added to the map data. Its details are open." : `${added.length} reports were added to the map data.`,
+        "info",
+      );
+    },
+    [records.length, profile, onIngest, notify],
+  );
+
   /** Summaries are requested explicitly. The narrative costs quota; the clusters do not. */
   const summarise = useCallback(
     async (withNarrative: boolean) => {
@@ -938,6 +994,7 @@ export function Deucalion() {
 
             <Intake
               onIngest={onIngest}
+              onAdd={onAdd}
               onError={notify}
               busy={busy}
               lowBandwidth={lowBandwidth}

@@ -51,6 +51,7 @@ export function Intake({
   busy,
   lowBandwidth,
   onDemoLoad,
+  onAdd,
 }: {
   onIngest: (result: IngestResult) => void;
   onError: (message: string) => void;
@@ -58,6 +59,8 @@ export function Intake({
   lowBandwidth: boolean;
   /** Set in demo mode: Load replays fixtures and uploads make no network call. */
   onDemoLoad?: () => void;
+  /** Single reports (link, typed, dictated, photo) are added to what is loaded, not a replacement. */
+  onAdd?: (result: IngestResult) => void;
 }) {
   const DEMO_UPLOAD_MESSAGE =
     "Demo mode is on, so nothing is sent to the classifier. Open the page without ?demo=1 to classify your own data.";
@@ -76,7 +79,8 @@ export function Intake({
         onError(data.error ?? `Ingest failed (${res.status}).`);
         return;
       }
-      onIngest(data);
+      if (onAdd && (label === "link" || label === "text" || label === "image")) onAdd(data);
+      else onIngest(data);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Ingest failed.");
     } finally {
