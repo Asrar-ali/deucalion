@@ -104,13 +104,17 @@ function reserveRingCoords(lat: number, lon: number, radiusKm = 25): GeoJSON.Pos
   return coords;
 }
 
-function reservesGeoJson(): GeoJSON.FeatureCollection<GeoJSON.Polygon> {
+function reservesGeoJson(counts: Map<string, number> = new Map()): GeoJSON.FeatureCollection<GeoJSON.Polygon> {
   return {
     type: "FeatureCollection",
     features: RESERVES.map((r) => ({
       type: "Feature",
       geometry: { type: "Polygon", coordinates: [reserveRingCoords(r.lat, r.lon)] },
-      properties: { name: r.name, community: r.community ?? r.name },
+      properties: {
+        name: r.name,
+        community: r.community ?? r.name,
+        hasPosts: (counts.get(r.community ?? r.name) ?? 0) > 0,
+      },
     })),
   };
 }
@@ -189,6 +193,8 @@ export function FloodMap({
   // Memoised: a fresh array every render re-ran the data and camera effects on every render.
   const points = useMemo(() => toPoints(records), [records]);
   const latestPoints = useRef(points);
+  /** Posts per community, so rings rebuilt on style.load keep their visibility. */
+  const reserveCounts = useRef(new Map<string, number>());
   latestPoints.current = points;
   const latestRecords = useRef(records);
   latestRecords.current = records;
@@ -285,7 +291,7 @@ export function FloodMap({
       const ringColor = cssVar("--text", "#333");
 
       // Added first so it paints beneath the report layers below.
-      instance.addSource("reserves", { type: "geojson", data: reservesGeoJson() });
+      instance.addSource("reserves", { type: "geojson", data: reservesGeoJson(reserveCounts.current) });
       instance.addLayer({
         id: "reserve-rings",
         type: "line",
@@ -294,6 +300,9 @@ export function FloodMap({
           "line-color": ringColor,
           "line-width": 1.2,
           "line-dasharray": [4, 3],
+          // At province scale, 19 unlabeled dashed circles read as noise: draw only the
+          // communities that have posts until the user zooms in, matching the labels.
+          "line-opacity": ["interpolate", ["linear"], ["zoom"], 7, ["case", ["get", "hasPosts"], 1, 0], 8, 1],
         },
       });
 
@@ -486,6 +495,8 @@ export function FloodMap({
   // the records currently passed to the map name a place within 25 km of that community.
   useEffect(() => {
     const counts = new Map(communityRollup(records).map((c) => [c.name, c.count]));
+    reserveCounts.current = counts;
+    (map.current?.getSource("reserves") as GeoJSONSource | undefined)?.setData(reservesGeoJson(counts));
     reserveMarkers.current.forEach((marker, i) => {
       const reserve = RESERVES[i];
       if (!reserve) return;

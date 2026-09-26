@@ -574,6 +574,18 @@ export function Deucalion() {
     [records, notify],
   );
 
+  // Opening Summary used to show an empty page until "Summarise" was found and pressed. The
+  // extractive summary is free and local, so build it on arrival once classification is done;
+  // the narrative, which spends gateway quota, stays behind its button.
+  const autoSummaryFor = useRef(0);
+  useEffect(() => {
+    if (view !== "summary" || busy || brief || !records.length) return;
+    if (autoSummaryFor.current === records.length) return;
+    if (!records.some((r) => r.labels.relevant?.value)) return;
+    autoSummaryFor.current = records.length;
+    void summarise(false);
+  }, [view, busy, brief, records, summarise]);
+
   const download = useCallback(
     async (format: "geojson" | "csv" | "brief" | "sms") => {
       try {

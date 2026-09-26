@@ -289,15 +289,15 @@ export function RecordsTable({
                       </span>
                     )}
                   </div>
-                  {record.labels.relevant?.via && (
+                  {/* Only the non-obvious case: a post counted because it describes the response
+                      without naming the hazard. The default case repeated on every row. */}
+                  {record.labels.relevant?.via === "response" && (
                     <div
                       className="mt-0.5 text-sm"
                       style={{ color: "var(--text-faint)" }}
                       title="Which question carried the relevance decision."
                     >
-                      {record.labels.relevant.via === "hazard"
-                        ? "describes the event itself"
-                        : "describes the response"}
+                      describes the response
                     </div>
                   )}
                 </td>
