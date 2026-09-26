@@ -40,22 +40,22 @@
 
   --text: oklch(24% 0.012 255);
   --text-muted: oklch(48% 0.012 255);
-  --text-faint: oklch(62% 0.01 255);
+  --text-faint: oklch(51% 0.01 255); /* was 62%: 3.5:1, fails AA. 51% clears 4.5:1 on surface and surface-inset */
 
   /* the single accent: interactivity, focus, selection. Never used for status. */
-  --accent: oklch(52% 0.15 240);
-  --accent-hover: oklch(46% 0.16 240);
+  --accent: oklch(49% 0.15 240); /* was 52%: 4.49:1 on accent-weak */
+  --accent-hover: oklch(43% 0.16 240);
   --accent-weak: oklch(94% 0.03 240);
   --accent-text: oklch(99% 0 0);
 
   /* semantic status. Paired with icons + labels in markup, never used alone. */
   --urgent: oklch(52% 0.19 18);
   --urgent-weak: oklch(95% 0.035 18);
-  --review: oklch(58% 0.14 75);
+  --review: oklch(49% 0.12 70); /* was 58%: 3.8:1 on review-weak */
   --review-weak: oklch(95% 0.05 85);
   --settled: oklch(50% 0.1 180);
   --settled-weak: oklch(95% 0.03 180);
-  --inert: oklch(62% 0.008 250);
+  --inert: oklch(51% 0.008 250); /* was 62%: 3.1:1 on inert-weak */
   --inert-weak: oklch(95% 0.004 250);
 
   /* geo provenance: exact vs inferred. Exact deserves to look different. */
@@ -81,7 +81,7 @@
 
     --text: oklch(95% 0.005 255);
     --text-muted: oklch(72% 0.01 255);
-    --text-faint: oklch(58% 0.01 255);
+    --text-faint: oklch(68% 0.01 255); /* was 58%: 4.1:1 on dark surface */
 
     --accent: oklch(72% 0.14 240);
     --accent-hover: oklch(78% 0.14 240);
@@ -94,7 +94,7 @@
     --review-weak: oklch(29% 0.06 80);
     --settled: oklch(72% 0.1 180);
     --settled-weak: oklch(27% 0.045 180);
-    --inert: oklch(58% 0.01 255);
+    --inert: oklch(68% 0.01 255);
     --inert-weak: oklch(26% 0.008 255);
 
     --geo-exact: oklch(74% 0.11 200);
@@ -113,7 +113,7 @@
   --line-strong: oklch(42% 0.016 255);
   --text: oklch(95% 0.005 255);
   --text-muted: oklch(72% 0.01 255);
-  --text-faint: oklch(58% 0.01 255);
+  --text-faint: oklch(68% 0.01 255); /* was 58%: 4.1:1 on dark surface */
   --accent: oklch(72% 0.14 240);
   --accent-hover: oklch(78% 0.14 240);
   --accent-weak: oklch(30% 0.05 240);
@@ -124,7 +124,7 @@
   --review-weak: oklch(29% 0.06 80);
   --settled: oklch(72% 0.1 180);
   --settled-weak: oklch(27% 0.045 180);
-  --inert: oklch(58% 0.01 255);
+  --inert: oklch(68% 0.01 255);
   --inert-weak: oklch(26% 0.008 255);
   --geo-exact: oklch(74% 0.11 200);
   --geo-inferred: oklch(70% 0.1 265);

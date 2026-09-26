@@ -95,12 +95,17 @@ export function RecordsTable({
   }
 
   const SortHeader = ({ k, children }: { k: SortKey; children: React.ReactNode }) => (
-    <th scope="col" className="px-2 py-1.5 text-left font-medium">
+    <th
+      scope="col"
+      className="px-2 py-1.5 text-left font-medium"
+      // aria-sort belongs on the column header, not the button inside it: screen readers
+      // ignore it on a button (axe: aria-allowed-attr, critical).
+      aria-sort={sort.key === k ? (sort.desc ? "descending" : "ascending") : "none"}
+    >
       <button
         type="button"
         onClick={() => toggleSort(k)}
         className="inline-flex items-center gap-1 hover:underline"
-        aria-sort={sort.key === k ? (sort.desc ? "descending" : "ascending") : "none"}
       >
         {children}
         {sort.key === k &&
