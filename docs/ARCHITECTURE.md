@@ -124,16 +124,20 @@ Facts that constrain the implementation:
 - **Plain `fetch` client, not the vendor SDK.** `laya-serve` exposes this identical
   `/v1/systemone` shape, so the fallback is a base-URL swap. Coupling to the SDK throws that away.
 
-**Measured cost for the full corpus: ~$0.15–0.30.**
+**Measured cost: $0.000021 per call at 4 questions (~500 input tokens), avg latency 287ms,
+model `typesafe/jev-1.13-20260917`. At 10 questions that is roughly $0.00004/call, so the
+4,074 prefiltered candidates cost about $0.16 and the full 8,024 about $0.31.**
 
 Token spend is dominated by the 9 question definitions repeating on every call. Terse
 `instructions` and `criteria` are a direct 2–3x cost lever.
 
-### 4.4 The 9 questions (`lib/questions.ts` — the product lives here)
+### 4.4 The 10 questions (`lib/questions.ts` — the product lives here)
 
 | Key | Type | Purpose |
 |---|---|---|
-| `relevant` | noul | Primary filter |
+| `hazard_topic` | noul | About the hazard itself |
+| `response_topic` | noul | About the response: evacuation, rescue, shelter, closure, relief |
+| *(derived)* `relevant` | — | **max(hazard_topic, response_topic)** — see the measurement below |
 | `hazard` | choice | flood / fire / quake / storm / other → feeds event profile |
 | `category` | choice | access-blocked · evacuation · rescue-request · damage · aid · advisory · sentiment |
 | `severity` | score | 3 coarse levels (score is the weakest primitive — keep it coarse) |
@@ -142,6 +146,34 @@ Token spend is dominated by the 9 question definitions repeating on every call. 
 | `has_pii` | noul | **Privacy gate** — redact before display and before any Gemini call |
 | `is_spam` | noul | Kills recruiter/commercial noise |
 | `firsthand` | noul | First-hand vs retweet/news — the sponsor's core thesis |
+
+#### Relevance was measured, not guessed
+
+`scripts/tune-relevance.mjs` and `tune-relevance2.mjs` scored candidate phrasings against
+hand-labelled rows from the provided dataset. Total cost of the experiment: **$0.001**.
+
+| Phrasing | Separation | Forced into review queue |
+|---|---|---|
+| "about the ongoing flood emergency in Calgary, High River" | 0.010 | 4/15 |
+| topical framing ("would someone monitoring this want to read it") | 0.010 | 6/15 |
+| hazard + explicit inclusions | 0.300 | 6/15 |
+| hazard topic only | 0.360 | 2/18 |
+| **max(hazard_topic, response_topic)** | **0.700** | **0/18** |
+
+Two findings worth keeping:
+
+1. **Naming the place in the question made it worse.** A headline reading "Floods displace
+   nearly 200,000 in western Canada" was hedged down to 0.57 because it does not say
+   Calgary. Place belongs to the geoparser, not to the relevance question.
+2. **Response posts often never name the hazard.** "Mandatory evacuation order issued in
+   Medicine Hat" scores hazard 0.49 / response 0.98. "Red Cross reception centre is open"
+   scores 0.53 / 0.94. A single overloaded question loses both — and they are exactly the
+   operational reports a responder needs.
+
+Observed model behaviour also worth recording: `category` returned confidence of exactly
+1.000 on clear-cut rows. This model family ships over-confident and expects temperature
+calibration against labelled data, which we do not have for this event. So confidence is
+presented as a **relative** signal for routing and review, never described as calibrated.
 
 Rules, taken from the documented failure modes of this model family:
 

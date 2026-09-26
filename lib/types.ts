@@ -50,7 +50,14 @@ export interface Provenance {
 }
 
 export interface RecordLabels {
-  relevant?: Decision<boolean>;
+  /**
+   * Derived: max(hazard_topic, response_topic). Kept as the single field the UI filters on.
+   * `via` says which question carried it, so the interface can show the reason.
+   */
+  relevant?: Decision<boolean> & { via?: "hazard" | "response" };
+  /** Raw inputs to `relevant`, exposed so the UI can explain a borderline call. */
+  hazard_topic?: Decision<boolean>;
+  response_topic?: Decision<boolean>;
   hazard?: Decision<HazardType>;
   category?: Decision<Category>;
   /** 0..2 — background / notable / urgent */
