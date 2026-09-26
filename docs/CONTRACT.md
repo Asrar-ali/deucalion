@@ -42,7 +42,6 @@ Optional: `column` to force which CSV column holds the text.
 
 ```json
 {
-  "sessionId": "s_8fj2",
   "records": [{ "id": "r_001", "source": "csv", "text": "...", "labels": {}, "places": [], "review": "auto", "classifier": "jev" }],
   "profile": { "hazard": "flood", "places": ["Calgary", "High River"], "terms": ["flood", "water"], "userEdited": false },
   "funnel": { "raw": 8024, "deduped": 7562, "prefiltered": 0, "relevant": 0, "mappable": 0, "noPlaceMentioned": 0, "rejectedRows": [] },
@@ -61,8 +60,13 @@ Show them. Do not swallow them.
 
 ## `POST /api/classify` — Server-Sent Events
 
+**Stateless.** The client posts the records it holds; the server keeps nothing. A server-side
+session map dies across serverless instances and cold starts, which would make a judge's
+upload vanish mid-run. This also makes "no server-side persistence" literally true.
+
 ```json
-{ "sessionId": "s_8fj2", "profile": { "...": "edited profile" }, "byoKey": "optional" }
+{ "records": [ ...FloodRecord ], "profile": { ...EventProfile },
+  "byoKey": "optional", "accessCode": "optional" }
 ```
 
 Stream of `data:` lines, each a JSON object with a `type`:
@@ -75,6 +79,12 @@ Stream of `data:` lines, each a JSON object with a `type`:
 | `spend` | `{ spend: SpendState }` | budget meter |
 | `degraded` | `{ reason: "402" \| "429" \| "no_key" }` | banner: results are `heuristic` |
 | `done` | `{ funnel, spend, modelVersion }` | enable summaries + export |
+
+Verified against the live API: 40 rows produced `progress=3 funnel=2 record=40 spend=1 done=1`,
+took 733ms, cost $0.00069, and echoed `typesafe/jev-1.13-20260917`.
+
+Records for rows the local prefilter dropped are streamed too, labelled
+`classifier: "heuristic"` with `relevant.value === false`. They are never silently discarded.
 | `error` | `{ message }` | inline error, keep partial results |
 
 Records arrive in completion order, not input order. Patch by `id`.

@@ -37,17 +37,43 @@ export interface ParsedCsv {
   rejected: Array<{ row: number; reason: string }>;
 }
 
+/**
+ * "Posted At", "posted_at", "posted-at" and "PostedAt" must all match the same candidate,
+ * so punctuation collapses to a single underscore before comparing.
+ */
+function normalizeHeader(h: string): string {
+  return h
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
 function pick(headers: string[], candidates: string[]): string | undefined {
-  const normalized = headers.map((h) => ({ raw: h, key: h.trim().toLowerCase() }));
+  const normalized = headers.map((h) => ({ raw: h, key: normalizeHeader(h) }));
+
   for (const candidate of candidates) {
     const hit = normalized.find((h) => h.key === candidate);
     if (hit) return hit.raw;
   }
-  // Fall back to a partial match: "Tweet Text (cleaned)" should still be found.
+
+  // Partial match catches "tweet_text_cleaned" for "tweet_text". Short candidates are
+  // EXCLUDED from this pass: "x" as a longitude alias otherwise matches the x inside
+  // "Tweet Text", and a text column silently becomes a coordinate column.
   for (const candidate of candidates) {
+    if (candidate.length < 4) continue;
     const hit = normalized.find((h) => h.key.includes(candidate));
     if (hit) return hit.raw;
   }
+
+  // Last resort for short aliases: match a whole underscore-separated segment, so "x"
+  // matches "geo_x" but never "text".
+  for (const candidate of candidates) {
+    if (candidate.length >= 4) continue;
+    const hit = normalized.find((h) => h.key.split("_").includes(candidate));
+    if (hit) return hit.raw;
+  }
+
   return undefined;
 }
 
