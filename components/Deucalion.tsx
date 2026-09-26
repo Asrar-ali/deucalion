@@ -146,12 +146,31 @@ export function Deucalion() {
             setRecords([...byId.values()]);
           },
           onProgress: (done, total, stage) => setProgress({ done, total, stage }),
-          onFunnel: setFunnel,
+          // Classify only ever sees the deduplicated set, so its `raw` is the post-dedupe
+          // count and would quietly replace the real number of rows in the file. The client
+          // is the only place that knows both, so it keeps ingest's figures for the first two
+          // stages and takes the rest from the stream.
+          onFunnel: (next) =>
+            setFunnel((prev) =>
+              prev
+                ? {
+                    ...next,
+                    raw: prev.raw,
+                    deduped: prev.deduped,
+                    rejectedRows:
+                      next.rejectedRows.length > prev.rejectedRows.length
+                        ? next.rejectedRows
+                        : prev.rejectedRows,
+                  }
+                : next,
+            ),
           onSpend: setSpend,
           onDegraded: (_reason, message) => notify(message),
           onError: notify,
           onDone: (finalFunnel, finalSpend, version) => {
-            setFunnel(finalFunnel);
+            setFunnel((prev) =>
+              prev ? { ...finalFunnel, raw: prev.raw, deduped: prev.deduped } : finalFunnel,
+            );
             setSpend(finalSpend);
             if (version) setModelVersion(version);
             setProgress(null);

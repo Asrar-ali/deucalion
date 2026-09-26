@@ -8,7 +8,7 @@
  * users are band-office staff and responders, who have a phone and a link, not a dataset.
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FileCsv,
   Image as ImageIcon,
@@ -161,12 +161,18 @@ export function Intake({
    * outdoors, and anyone who would rather talk than type into a phone in the rain.
    * Disabled in low-bandwidth mode because Chrome uploads the audio to Google.
    */
-  const speechSupported =
-    typeof window !== "undefined" &&
-    Boolean(
-      (window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition ??
-        (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition,
+  // Resolved in an effect, not during render. Reading `window` while rendering makes the
+  // server produce different HTML from the client and React throws a hydration error (#418),
+  // which was happening on every page load.
+  const [speechSupported, setSpeechSupported] = useState(false);
+  useEffect(() => {
+    setSpeechSupported(
+      Boolean(
+        (window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition ??
+          (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition,
+      ),
     );
+  }, []);
 
   const toggleListening = () => {
     if (listening) {
