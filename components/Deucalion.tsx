@@ -152,6 +152,10 @@ export function Deucalion() {
   const [wipeConfirming, setWipeConfirming] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const wipeButtonRef = useRef<HTMLButtonElement>(null);
+  // The in-flight classification, so wipe and unmount can stop it from writing data back.
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   // Which page-like view is showing. Default is "data": nothing to map, filter or summarise
   // yet. Kept in sync with the URL hash below, purely so the current view survives a reload or
@@ -265,6 +269,9 @@ export function Deucalion() {
    * working state plus the one key this app has ever written to localStorage.
    */
   const wipeEverything = useCallback(() => {
+    // Abort first: a streaming run would otherwise repopulate what is cleared below.
+    abortRef.current?.abort();
+    abortRef.current = null;
     setRecords([]);
     setProfile(null);
     setFunnel(null);
@@ -303,6 +310,12 @@ export function Deucalion() {
       // by focusProfile (server side for one request, in chunkedIngest for a large upload), so
       // result.profile arrives with hazard "flood" and focused true. `focused` tells the prefilter
       // to stop paying for other hazards' vocabulary, so the explicit choice sets it too.
+      // A new load supersedes any run still streaming.
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const { signal } = controller;
+
       const eventProfile =
         focus === "flood"
           ? { ...result.profile, hazard: "flood" as const, userEdited: true, focused: true }
@@ -332,7 +345,7 @@ export function Deucalion() {
       // if the run errors.
       let dirty = false;
       const flushRecords = () => {
-        if (!dirty) return;
+        if (!dirty || signal.aborted) return;
         dirty = false;
         setRecords([...byId.values()]);
       };
@@ -346,12 +359,17 @@ export function Deucalion() {
             for (const r of batch) byId.set(r.id, r);
             dirty = true;
           },
-          onProgress: (done, total, stage) => setProgress({ done, total, stage }),
+          // Each state-setting callback checks the signal: after a wipe the stream can still
+          // deliver an event or two before the abort lands, and none may resurrect state.
+          onProgress: (done, total, stage) => {
+            if (!signal.aborted) setProgress({ done, total, stage });
+          },
           // Classify only ever sees the deduplicated set, so its `raw` is the post-dedupe
           // count and would quietly replace the real number of rows in the file. The client
           // is the only place that knows both, so it keeps ingest's figures for the first two
           // stages and takes the rest from the stream.
           onFunnel: (next) =>
+            !signal.aborted &&
             setFunnel((prev) =>
               prev
                 ? {
@@ -365,10 +383,17 @@ export function Deucalion() {
                   }
                 : next,
             ),
-          onSpend: setSpend,
-          onDegraded: (_reason, message) => notify(message),
-          onError: notify,
+          onSpend: (next) => {
+            if (!signal.aborted) setSpend(next);
+          },
+          onDegraded: (_reason, message) => {
+            if (!signal.aborted) notify(message);
+          },
+          onError: (message) => {
+            if (!signal.aborted) notify(message);
+          },
           onDone: (finalFunnel, finalSpend, version) => {
+            if (signal.aborted) return;
             flushRecords();
             setFunnel((prev) =>
               prev ? { ...finalFunnel, raw: prev.raw, deduped: prev.deduped } : finalFunnel,
@@ -379,6 +404,7 @@ export function Deucalion() {
             setBusy(false);
           },
         },
+        signal,
       );
       } finally {
         // Success, error and abort all land here. Stopping the timer without one last flush would
@@ -386,8 +412,12 @@ export function Deucalion() {
         clearInterval(timer);
         flushRecords();
       }
-      setBusy(false);
-      setProgress(null);
+      // A newer load owns the busy state now; only clear it if this run is still the current one
+      // (or was wiped, which nulls the ref).
+      if (abortRef.current === null || abortRef.current === controller) {
+        setBusy(false);
+        setProgress(null);
+      }
     },
     [notify, focus],
   );

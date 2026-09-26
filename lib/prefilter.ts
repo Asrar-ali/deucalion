@@ -95,7 +95,11 @@ export const HAZARD_LEXICON: Record<HazardType, RegExp> = {
   // obviously relevant rows in the provided dataset.
   flood:
     /(?:flood|inundat|submerg|overflow|sandbag|levee|dike|dyke|washout|highwater)\w*|under\s?water|washed\s?out|water\s+(?:level|rise|rising|everywhere)|river\s+(?:rise|rising|crest)/i,
-  fire: /(?:wildfire|firefight|smoke|blaze|ember|scorch)\w*|fire\s+(?:ban|season|crew|evacuation)/i,
+  // "ember" needs a leading boundary. Without one it matched inside remember, December,
+  // September and member: 51 of the 89 fire matches in the Alberta file were ember-only, which
+  // overstated the fire share and, with the off-hazard credit, kept posts like "a day to
+  // remember" as candidates. Hashtag compounds are not a concern for this word.
+  fire: /(?:wildfire|firefight|smoke|blaze|scorch)\w*|\bember\w*|fire\s+(?:ban|season|crew|evacuation)/i,
   quake: /(?:earthquake|quake|tremor|aftershock|seismic)\w*/i,
   storm:
     /(?:tornado|hurricane|blizzard|hailstorm|windstorm|thunderstorm|cyclone|typhoon)\w*|storm\s+surge/i,
@@ -136,7 +140,10 @@ function rankPlaces(sample: string[], names: string[], limit = 8): string[] {
     // Skip anything under 3 characters outright: even boundary-checked, "sg" or "nj" are more
     // likely to be a hashtag fragment than a place in a world feed.
     if (name.length < 3) continue;
-    const re = new RegExp(`(?<![a-z0-9])${escape(name.toLowerCase())}(?![a-z0-9])`);
+    // No lookbehind: `(?<!...)` throws a SyntaxError on Safari before 16.4, and this runs in the
+    // browser (via chunkedIngest), so it would have broken every large upload there. Consuming
+    // one leading character instead is equivalent for a boolean test().
+    const re = new RegExp(`(?:^|[^a-z0-9])${escape(name.toLowerCase())}(?![a-z0-9])`);
     let n = 0;
     for (const t of sample) if (re.test(t.toLowerCase())) n++;
     if (n > 0) hits.push([name, n]);

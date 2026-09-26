@@ -13,7 +13,7 @@ import { blockedMessage, checkBudget, recordDailySpend, spendCookie } from "../.
 import { readImageMeta } from "../../../lib/exif";
 import { describeImage, readImageText } from "../../../lib/vision";
 import { geoparse } from "../../../lib/geoparse";
-import { prefilter, scoreRelevance } from "../../../lib/prefilter";
+import { HAZARD_LEXICON, prefilter, scoreRelevance } from "../../../lib/prefilter";
 import { buildQuestions, CONFIDENCE_GATE, deriveRelevance } from "../../../lib/questions";
 import {
   decideWithRetry,
@@ -104,10 +104,15 @@ function toLabels(res: SystemOneResponse): RecordLabels {
 function heuristicLabels(text: string, profile: EventProfile): RecordLabels {
   const s = scoreRelevance(text, profile);
   const p = Math.min(0.95, s.score);
+  // The hazard label must come from THIS post, not be copied from the profile. Once a mixed feed
+  // is focused on flood, stamping every survivor "flood" made the degraded path (circuit breaker
+  // open, budget spent) show every tornado and fire post in the flood-only view. A post earns the
+  // profile's hazard only if its own text matches that hazard's vocabulary; otherwise "other".
+  const ownHazard = HAZARD_LEXICON[profile.hazard].test(text) ? profile.hazard : "other";
   return {
     relevant: { value: p >= 0.3 && !s.likelySpam, confidence: 0.3, via: "hazard" },
     is_spam: { value: s.likelySpam, confidence: s.likelySpam ? 0.6 : 0.3 },
-    hazard: { value: profile.hazard, confidence: 0.3 },
+    hazard: { value: ownHazard, confidence: 0.3 },
   };
 }
 
