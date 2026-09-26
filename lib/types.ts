@@ -30,6 +30,8 @@ export interface Decision<T = unknown> {
 
 export interface PlaceHit {
   name: string;
+  /** Gazetteer feature type: road, landmark, neighbourhood, town, city, reserve, region... */
+  kind?: string;
   lat: number;
   lon: number;
   /** 0..1 — how sure we are this is the right place, not that a place was mentioned. */
