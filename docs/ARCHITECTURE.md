@@ -76,13 +76,20 @@ learn where a record came from.
 
 ### 4.2 The funnel (counts shown in the UI — no silent drops)
 
+Measured on the provided dataset (`npx tsx scripts/test-prefilter.ts`):
+
 ```
 8,024 raw
-  → dedupe / normalize        7,562
-  → local prefilter          ~4,500 candidates   (free, instant, no network)
-  → Jev typed decisions      ~3,200 relevant     (calibrated confidence)
-  → geoparse + EXIF          ~900 mappable + explicit "no place mentioned" count
+  → dedupe / normalize        7,460   (-564: 462 exact + retweets of the same body)
+  → local prefilter           4,074   candidates, 107ms, $0, 148 dropped as spam
+  → Jev typed decisions           ?   measured once the key is live
+  → geoparse + EXIF               ? + explicit "no place mentioned" count
 ```
+
+The prefilter halves the paid calls. Its threshold is deliberately generous: a false
+positive costs a fraction of a cent, a false negative silently loses a report from
+someone standing in floodwater. `scripts/test-prefilter.ts` asserts that five
+obviously-relevant rows survive, and fails the run if any are dropped.
 
 ### 4.3 Classifier — Jev via OpenRouter
 
