@@ -14,7 +14,7 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowSquareOut,
   Eye,
@@ -485,8 +485,11 @@ export function Deucalion() {
     return [...names.entries()].sort((a, b) => b[1] - a[1]);
   }, [records]);
 
+  // Typing in search re-filtered every record per keystroke; on the 61k-row world feed that
+  // stutters. The deferred query lets React keep the input responsive and filter behind it.
+  const deferredQuery = useDeferredValue(filters.query);
   const visible = useMemo(() => {
-    const q = filters.query.trim().toLowerCase();
+    const q = deferredQuery.trim().toLowerCase();
     return records.filter((r) => {
       if (!r.labels.relevant?.value) return false;
       const category = r.labels.category?.value;
@@ -500,7 +503,7 @@ export function Deucalion() {
       if (q && !r.text.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [records, filters]);
+  }, [records, filters, deferredQuery]);
 
   const relevantCount = records.filter((r) => r.labels.relevant?.value).length;
   const selected = useMemo(
@@ -1059,21 +1062,29 @@ function FiltersSidebar(props: {
   visibleCount: number;
   relevantCount: number;
 }) {
+  // One FilterPanel, not two: rendering it for both phone and desktop and hiding one with CSS
+  // duplicated every control id (id="q", id="community"), so labels could point at the hidden
+  // copy. A disclosure button shows it on phones; on desktop it is always visible.
+  const [open, setOpen] = useState(false);
   return (
-    <>
-      <details className="border-b lg:hidden" style={{ borderColor: "var(--line)" }}>
-        <summary className="cursor-pointer px-4 py-2 text-sm font-medium" style={{ color: "var(--text)" }}>
-          Filters
-        </summary>
-        <FilterPanel {...props} />
-      </details>
-      <div
-        className="hidden shrink-0 lg:block lg:w-[280px] lg:overflow-y-auto lg:border-r"
-        style={{ borderColor: "var(--line)" }}
+    <div
+      className="shrink-0 border-b lg:w-[280px] lg:overflow-y-auto lg:border-b-0 lg:border-r"
+      style={{ borderColor: "var(--line)" }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls="filters-panel"
+        className="w-full px-4 py-2 text-left text-sm font-medium lg:hidden"
+        style={{ color: "var(--text)" }}
       >
+        {open ? "Hide filters" : "Filters"}
+      </button>
+      <div id="filters-panel" className={open ? "block" : "hidden lg:block"}>
         <FilterPanel {...props} />
       </div>
-    </>
+    </div>
   );
 }
 

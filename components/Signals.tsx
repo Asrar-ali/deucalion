@@ -73,6 +73,7 @@ export function CategoryTag({ category }: { category: Category | undefined }) {
     >
       <IconCmp size={13} weight="bold" aria-hidden />
       {meta.label}
+      <span className="sr-only">: {meta.hint}</span>
     </span>
   );
 }
@@ -156,6 +157,7 @@ export function PlaceChip({ place }: { place: PlaceHit }) {
         style={{ color: exact ? "var(--geo-exact)" : "var(--geo-inferred)" }}
       />
       <span style={{ color: "var(--text)" }}>{place.name}</span>
+      <span className="sr-only">, {meta.hint}</span>
       <span className="font-mono" style={{ color: "var(--text-faint)" }}>
         {meta.label.toLowerCase()} {pct(place.confidence)}
       </span>
@@ -188,6 +190,7 @@ export function ClassifierTag({ classifier }: { classifier: FloodRecord["classif
       title={meta.hint}
     >
       {meta.label}
+      <span className="sr-only">: {meta.hint}</span>
     </span>
   );
 }

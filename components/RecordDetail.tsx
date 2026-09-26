@@ -86,7 +86,9 @@ export function RecordDetail({
         >
           <ArrowLeft size={14} aria-hidden /> Back to the list
         </button>
-        <h2 id="detail-heading" ref={heading} tabIndex={-1} className="sr-only">
+        {/* Visible, so the focus ring that lands here on open can be seen (an sr-only target
+            hid it from sighted keyboard users). */}
+        <h2 id="detail-heading" ref={heading} tabIndex={-1} className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
           Report details
         </h2>
       </div>
@@ -113,6 +115,9 @@ export function RecordDetail({
       {record.imageRef && (
         // eslint-disable-next-line @next/next/no-img-element -- a data: URL from the upload, not a remote asset
         <img
+          width={640}
+          height={360}
+          loading="lazy"
           src={record.imageRef}
           alt={record.imageAlt ?? ""}
           className="max-h-60 w-full rounded object-contain"

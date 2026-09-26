@@ -215,7 +215,10 @@ export function RecordsTable({
                       <img
                         src={record.imageRef}
                         alt={record.imageAlt ?? "Uploaded photo, no description available"}
-                        className="max-h-20 rounded"
+                        width={142}
+                        height={80}
+                        loading="lazy"
+                        className="h-20 w-auto rounded object-contain"
                         style={{ border: "1px solid var(--line)" }}
                       />
                       {record.imageAlt && (
