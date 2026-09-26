@@ -574,6 +574,25 @@ export function Deucalion() {
             </div>
           ) : null}
 
+          {/* A mixed file is focused on flooding automatically. Say so, with the numbers behind it,
+              or the view silently hides the other disasters, which is the kind of unexplained
+              omission this tool exists to avoid. */}
+          {ingestInfo?.profile.mixed && ingestInfo.profile.hazardShares ? (
+            <div
+              className="border-t px-4 py-2 text-sm"
+              style={{ borderColor: "var(--line)", color: "var(--text-muted)", background: "var(--accent-weak)" }}
+            >
+              <strong style={{ color: "var(--text)" }}>This file mixes several disasters.</strong> Share of hazard
+              keywords:{" "}
+              {(Object.entries(ingestInfo.profile.hazardShares) as Array<[string, number]>)
+                .filter(([, share]) => share >= 0.01)
+                .sort((a, b) => b[1] - a[1])
+                .map(([hazard, share]) => `${hazard} ${Math.round(share * 100)}%`)
+                .join(", ")}
+              . Showing flood posts only. Untick &quot;Only posts about flooding&quot; in the filters to see the rest.
+            </div>
+          ) : null}
+
           {records.length > 0 && (
             <FilterPanel
               filters={filters}

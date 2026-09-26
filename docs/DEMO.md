@@ -61,8 +61,9 @@ judge.
 
 Upload an unseen CSV with different column names and a different hazard word.
 
-> "The detected event changes on screen. Nothing about flooding is hardcoded. The same
-> pipeline runs on an earthquake file with no code change."
+> "The detected event changes on screen. Nothing about flooding is hardcoded for a
+> single-event file. The same pipeline runs on an earthquake file with no code change. A file
+> that mixes disasters is handled in the bonus segment below."
 
 ## Beat 6: Trust and destination (2:25-2:50)
 
@@ -76,6 +77,37 @@ Point at the unmappable count in the funnel, the review queue, and the export pa
 
 > "Ninety-plus First Nation communities already work with CE Strategies. This runs on a
 > laptop, costs cents, and stores nothing after the tab closes."
+
+---
+
+## Bonus round segment: the world feed (60-90 seconds)
+
+Run this after Beat 6 if time allows, or as its own segment if the judges ask for the bonus
+round. Times are relative to the start of the segment.
+
+1. **Load (0:00-0:15).** Load the world feed. About 53,000 unique posts after removing
+   duplicates and retweets.
+   > "New file, from all over the world, several disaster types. Same pipeline."
+2. **The message (0:15-0:30).** Point at the notice saying the file mixes several disasters.
+   > "It measured the file. Storm posts are 53% of the hazard mentions, flood 32%. It does not
+   > pretend this is a flood file. It says so, and it focuses on flood because that is the
+   > task."
+3. **Flood-only default (0:30-0:45).** Show the map with only flood posts.
+   > "Our first version guessed one hazard for the whole file. It guessed storm, and real flood
+   > posts scored 0.08 against a 0.15 threshold and vanished. That is fixed."
+4. **Hazard filter (0:45-1:00).** Open the hazard filter and reveal the other disasters.
+   > "Nothing is thrown away. The other disasters are one click away."
+5. **World-scale map (1:00-1:15).** Zoom out to the world view, then into Queensland, then
+   Colorado. Click a cluster.
+   > "Queensland dominates, Colorado and the Philippines follow. That is where the flood posts
+   > are, by keyword. The map is honest about being lopsided."
+6. **Limits (1:15-1:30).**
+   > "We have not timed a full run of this file end to end, and we have not tested the browser
+   > on 53,000 rows in a live tab. We have no labelled ground truth, so we do not quote an
+   > accuracy number."
+
+If the full classification is not finished, say so and show what has streamed so far. Do not
+promise a finish time. None has been measured.
 
 ---
 
@@ -143,3 +175,21 @@ the classify stream stalled by 11:00: Gemini narrative summaries (the extractive
 already works without a model), the image and vision path, the link resolvers, the First
 Nations overlay. None of CSV ingest, classification, the map, the funnel counts or the
 deployment itself were ever on that list.
+
+**"How do you know it is a flood post?"**
+"We do not know. The classifier proposes that a post is flood-related and attaches a
+confidence. A local prefilter first removes duplicates and posts with no flood signal, then a
+typed classifier scores the rest. Anything below the confidence line goes to review instead of
+onto the map as fact. There is no labelled ground truth for this file, so we do not state an
+accuracy number."
+
+**"What about Bangladesh?"**
+"924 posts name Bangladesh. 617 of them are about a building collapse. None mention flooding.
+So it is correctly absent from the flood map."
+
+**"Why not just search for the word flood?"**
+"Keyword scoring against one guessed hazard dropped real flood posts on this file, because
+storm vocabulary outnumbers flood vocabulary there. Flood posts do not always use the word,
+and a word search would also pull in metaphors and news resharing. We use keyword counts to
+measure the file and to cut cost, and a classifier to decide relevance. The place counts we
+quote are keyword matches, not classifications."

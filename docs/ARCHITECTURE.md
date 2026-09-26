@@ -192,6 +192,12 @@ Derived from the corpus, shown to the user, editable:
 
 An earthquake CSV works with no code change, and the judge watches it adapt.
 
+Mixed files (bonus round). Detection picks one hazard, which is wrong for a file that mixes
+disasters. A file is "mixed" when two or more hazards each hold at least 15% of hazard
+mentions. For a mixed file the prefilter focuses on flood (`focusProfile`) and stops crediting
+other hazards' vocabulary, and the UI states that it did so. An explicit "flooding only" choice
+takes priority. See `scripts/test-mixed.mts`.
+
 ### 4.6 Geoparser
 
 Priority order, each point carrying `method` + `confidence`:

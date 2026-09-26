@@ -112,6 +112,16 @@ silently discarded the 3,192 most obviously relevant rows in the corpus, and it 
 happened quietly, with no error and no crash, if we had not measured the funnel and noticed
 the number looked wrong.
 
+**A per-file guess about the hazard silently dropped real flood posts.** The prefilter scored
+every post against one hazard, the one detected for the whole corpus. On the bonus world feed,
+detection returns "storm", because storm vocabulary outnumbers flood vocabulary. Genuine flood
+posts then scored 0.08 against a 0.15 threshold and were dropped before they reached the
+classifier, with no error. One real row, "RT @newscientist: Climate change blamed as #Australia
+lurches from fire to flood ... #extremeweather", scored 0.08. It now scores 0.73. The same run
+exposed a second bug: place ranking used substring matching, so short aliases like "yxe" and
+"hwy 2" matched inside unrelated text, and the flood view's header read "near victoria,
+winnipeg, houston, morley, hwy 2, yxe". It now matches on word boundaries.
+
 **The image front door dropped records with no error.** Image records carry no text until
 vision fills it in, and our text-based prefilter treated empty text as nothing to check. Image
 rows were silently removed at the prefilter stage and never streamed back to the client, which
@@ -135,6 +145,72 @@ and both arrived at the same fix: copy the worker file into `public/` before eve
 and build, and point MapLibre at that stable path. Two people solving the same bug the same
 way in under an hour said more about how sharp that particular edge is than either of our
 individual debugging sessions did.
+
+## Bonus round: a world feed of many disasters
+
+**What the task asks.** CE Strategies' bonus round supplies a new CSV of tweets about
+disasters from all over the world, covering several disaster types, not floods alone. The job
+is to find and visualize only the flood-related tweets, on a world map rather than a regional
+one, with the same interaction as the original solution so a user can explore flood activity
+across countries and regions.
+
+**The file.** 61,159 rows, one `tweet` column. After removing exact duplicates and retweets of
+the same body, roughly 53,000 unique posts remain.
+
+**The bug it exposed.** Everything upstream of the classifier had been built around one event
+per file. The prefilter detected a single hazard for the whole corpus and scored every post
+against it. On this file that hazard is "storm", so flood posts were scored against storm
+vocabulary, landed at 0.08 against a 0.15 threshold, and were dropped without an error. It is
+the same failure shape as the word-boundary bug on the Alberta file: a quiet guess that removes
+the rows we most want, found by checking which real flood rows did not survive the funnel.
+
+**The fix.**
+
+- The prefilter now measures the hazard mix instead of picking one. A file is "mixed" when two
+  or more hazards each hold at least 15% of the hazard mentions.
+- For a mixed file the pipeline focuses on flood deliberately, and the interface says so in a
+  message beside the results. It does not pretend the file was about floods.
+- An explicit "What to map: flooding only" choice, built by the other team member, works
+  alongside this and takes priority when set.
+- Once flood is the target, the prefilter stops giving credit to other hazards' vocabulary.
+  On the current test run that cut the posts sent to the paid classifier from 24,488 to
+  11,199 out of 53,242 unique posts.
+- A hazard filter in the interface still lets a user see the other disasters, so the
+  flood-only default hides nothing permanently.
+- The bundled gazetteer grew from 104 to 165 places to cover the flood regions in this feed.
+  There is still no geocoding API.
+- Place ranking now uses word boundaries, which fixed the nonsense in the flood view's header.
+
+**The hazard mix, measured by keyword mentions on unique posts.**
+
+| File | Flood | Fire | Storm | Quake |
+|---|---|---|---|---|
+| Alberta 2013 (single event) | 97% | 3% | under 1% | under 1% |
+| World feed (mixed) | 32% | 8% | 53% | 8% |
+
+**Where the flood posts are.** By keyword on the world feed, about 6,250 posts (duplicates
+included) match flood vocabulary. Queensland and Australia account for 4,642, Colorado 791 and
+the Philippines 418. The Hurricane Sandy area (New York, New Jersey) has 62, Sardinia and Italy
+59, Thailand and Indonesia 11, India and Pakistan 10, and Alberta 4. Bangladesh has 0. The
+feed is dominated by a few events, so the world map is dense in a few places and sparse
+elsewhere. That is what the data says, not a rendering choice.
+
+**Bangladesh.** 924 posts name Bangladesh. 617 of them are about a building collapse. None
+mention flooding. It stays off the flood map, which is the right result.
+
+**Limits specific to this round.**
+
+- The end-to-end wall-clock time and dollar cost of classifying the whole world feed have not
+  been measured. No complete run has been observed. The only timing we have is server-side: one
+  2,500-record classify batch took 6.0 seconds and streamed 1.19 MB in 2,576 frames, and a
+  full run is 22 such batches.
+- Browser responsiveness on the roughly 53,000-row file is untested. It has not been checked
+  in a visible browser tab. The chunked browser path reports 53,600 unique posts against the
+  server's 53,242, because chunked deduplication differs slightly.
+- There is no labelled ground truth for this file, so we state no precision or recall for the
+  flood filter. The place counts above are keyword matches, not classifications.
+- The flood-only default is a choice, not a detection. The interface says the file mixes
+  several disasters so nobody reads the map as a picture of the whole feed.
 
 ## Accomplishments we're proud of
 
@@ -208,6 +284,10 @@ Strategies than an inflated one.
 - **No labelled ground truth exists for the 2013 Alberta event**, so confidence is presented
   as a relative signal for routing and review, never as a calibrated accuracy figure, and this
   submission never states a bare accuracy percentage.
+- **The bonus world feed is not fully measured.** No complete classification run of it has
+  been observed, so its total time and cost are unknown, and browser responsiveness on a file
+  of roughly 53,000 posts is untested. We state no accuracy, precision or recall for the flood
+  filter on it.
 - **Accessibility here is a self-assessment.** There has been no formal audit and no
   screen-reader user in the loop. The known gaps are listed in full in
   `docs/ACCESSIBILITY.md`.

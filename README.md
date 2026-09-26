@@ -79,7 +79,7 @@ voice (STT) ┘
   `response_topic`, combined with `max()`. See `lib/questions.ts` for the full reasoning and
   the measurement that produced it.
 - **Geoparser:** a bundled gazetteer (GeoNames Canada places plus First Nations reserve
-  polygons), no geocoding API, no network call, so it works offline and has no key for a
+  polygons, 165 places in total including the world-feed flood regions), no geocoding API, no network call, so it works offline and has no key for a
   judge to trip over.
 - **Text generation** (narrative summaries, plain-language mode) runs through the hackathon
   organizers' Gemini proxy. **Images go through OpenRouter instead**, because the proxy
@@ -109,6 +109,14 @@ Full design, module boundaries and the OCAP privacy stance are in `docs/ARCHITEC
   the question made separation worse (0.010). Splitting into `hazard_topic` and
   `response_topic` and taking the max moved separation to 0.700 with nothing forced into the
   review queue. Read the full comment block in `lib/questions.ts`.
+- **World feed (CE Strategies bonus round).** A 61,159-row file of tweets about many
+  disasters, roughly 53,000 unique posts after deduplication. The interface shows a world map
+  of flood posts only, with a hazard filter to reveal the other disasters. Not yet measured:
+  a full end-to-end run time and cost, and browser responsiveness at this size.
+- **Mixed-file handling.** The prefilter measures the hazard mix instead of guessing one
+  hazard per file. When two or more hazards each hold at least 15% of mentions, the file is
+  "mixed", the pipeline focuses on flood and says so on screen. Run
+  `npx tsx scripts/test-mixed.mts` to reproduce the checks (free, no network).
 - **The geoparser.** `npx tsx scripts/test-geoparse.ts` runs eleven hand-picked cases
   (landmark aliases, hashtag-compound place names, ambiguous names resolved by context,
   reserve lookup via EXIF) and measures 94% of prefiltered candidates as mappable over the
