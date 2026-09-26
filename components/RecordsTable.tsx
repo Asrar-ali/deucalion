@@ -216,6 +216,10 @@ export function RecordsTable({
                           a round trip. */}
                       <img
                         src={record.imageRef}
+                        onError={(e) => {
+                          // A missing image showed a broken alt-text box; hide it, the caption remains.
+                          e.currentTarget.style.display = "none";
+                        }}
                         alt={record.imageAlt ?? "Uploaded photo, no description available"}
                         width={142}
                         height={80}

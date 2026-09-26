@@ -89,9 +89,14 @@ export function FunnelStrip({
         {/* The sentence carries all five stage counts; nothing here is decorative. */}
         <p className="text-sm leading-snug" style={{ color: "var(--text)" }}>
           {stages.map((stage, i) => (
-            <span key={stage.key} className="whitespace-nowrap">
-              <strong className="font-semibold">{count(stage.value)}</strong> {stage.word}
-              {i < stages.length - 1 ? ", " : "."}
+            // The space between stages sits outside the nowrap span: inside it, the sentence had
+            // no break opportunity and ran 616px wide on a 390px phone.
+            <span key={stage.key}>
+              <span className="whitespace-nowrap">
+                <strong className="font-semibold">{count(stage.value)}</strong> {stage.word}
+                {i < stages.length - 1 ? "," : "."}
+              </span>
+              {i < stages.length - 1 ? " " : ""}
             </span>
           ))}
         </p>

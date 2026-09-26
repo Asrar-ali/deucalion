@@ -764,7 +764,9 @@ export function Deucalion() {
           className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 text-sm"
           style={{ background: "var(--accent-weak)", color: "var(--text)" }}
         >
-          <span className="flex-1">
+          {/* min-width forces the buttons onto their own row on phones instead of crushing
+              this sentence into a one-word-wide column beside them. */}
+          <span className="min-w-[16rem] flex-1">
             Done. {count(readyBanner.relevant)} flood posts found, {count(readyBanner.mappable)} placed on the map.
           </span>
           <button
@@ -773,16 +775,16 @@ export function Deucalion() {
               setView("map");
               headingRef.current?.focus();
             }}
-            className="rounded px-2 py-1 font-medium"
-            style={{ border: "1px solid var(--line-strong)", background: "var(--surface-raised)", borderRadius: "var(--radius)" }}
+            className="rounded px-2 py-1 font-medium hover:bg-[var(--surface-sunken)]"
+            style={{ border: "1px solid var(--line-strong)", borderRadius: "var(--radius)" }}
           >
             Open the map
           </button>
           <button
             type="button"
             onClick={() => setView("reports")}
-            className="rounded px-2 py-1 font-medium"
-            style={{ border: "1px solid var(--line-strong)", background: "var(--surface-raised)", borderRadius: "var(--radius)" }}
+            className="rounded px-2 py-1 font-medium hover:bg-[var(--surface-sunken)]"
+            style={{ border: "1px solid var(--line-strong)", borderRadius: "var(--radius)" }}
           >
             See the reports
           </button>

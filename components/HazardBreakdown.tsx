@@ -89,7 +89,7 @@ export function HazardBreakdown({
                     style={{ width: `${Math.max(share * 100, n ? 2 : 0)}%`, background: fill }}
                   />
                 </span>
-                <span className="text-right font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                <span className="text-right text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                   {count(n)} posts, {Math.round(share * 100)}%
                 </span>
               </button>

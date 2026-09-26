@@ -119,6 +119,10 @@ export function RecordDetail({
           height={360}
           loading="lazy"
           src={record.imageRef}
+          onError={(e) => {
+            // A missing image showed a broken alt-text box; hide it, the alt text is in the caption.
+            e.currentTarget.style.display = "none";
+          }}
           alt={record.imageAlt ?? ""}
           className="max-h-60 w-full rounded object-contain"
           style={{ border: "1px solid var(--line)" }}
