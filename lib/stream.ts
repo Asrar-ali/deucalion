@@ -84,6 +84,23 @@ export async function runClassify(
   callbacks: ClassifyCallbacks & { onRecordBatch?: (records: FloodRecord[]) => void },
   signal?: AbortSignal,
 ): Promise<void> {
+  // A dropped connection makes fetch or the stream reader throw. Without this catch the
+  // rejection escaped to the caller, no notice appeared and the run failed silently.
+  try {
+    await classifyStream(payload, callbacks, signal);
+  } catch (err) {
+    if ((err as { name?: string })?.name === "AbortError") return;
+    callbacks.onError?.(
+      "Lost the connection while classifying. Posts already classified are kept; load the file again to finish the rest.",
+    );
+  }
+}
+
+async function classifyStream(
+  payload: { records: FloodRecord[]; profile: unknown; byoKey?: string; accessCode?: string },
+  callbacks: ClassifyCallbacks & { onRecordBatch?: (records: FloodRecord[]) => void },
+  signal?: AbortSignal,
+): Promise<void> {
   const res = await fetch("/api/classify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

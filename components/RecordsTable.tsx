@@ -82,7 +82,7 @@ export function RecordsTable({
       <div className="px-4 py-10 text-center" style={{ color: "var(--text-muted)" }}>
         <p className="text-sm">
           {totalBeforeFilter === 0
-            ? "No records loaded yet."
+            ? "No relevant reports yet. Posts still being classified, and posts classified as unrelated, are not listed here."
             : `None of the ${count(totalBeforeFilter)} records match these filters.`}
         </p>
         {totalBeforeFilter > 0 && (
