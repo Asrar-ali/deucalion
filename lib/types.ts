@@ -146,6 +146,8 @@ export interface FunnelCounts {
 export interface SpendState {
   /** Real dollars, summed from provider usage.cost. */
   used: number;
+  /** Spent by this request alone; the client sums these across parallel batches. */
+  spent?: number;
   budget: number;
   unlimited: boolean;
   /** Circuit breaker open => results are heuristic-labelled. */

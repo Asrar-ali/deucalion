@@ -137,7 +137,7 @@ export async function POST(request: Request) {
   });
 
   const questions = buildQuestions(profile);
-  const concurrency = Math.max(1, Number(process.env.SYSTEMONE_CONCURRENCY ?? "20") || 20);
+  const concurrency = Math.max(1, Number(process.env.SYSTEMONE_CONCURRENCY ?? "32") || 32);
 
   const encoder = new TextEncoder();
   let spent = 0;
@@ -326,7 +326,7 @@ export async function POST(request: Request) {
                 labels = heuristicLabels(candidate.text, profile);
                 // A 402 is terminal; repeated failures mean the provider is unhealthy.
                 const terminal = err instanceof SystemOneError && err.status === 402;
-                if (terminal || consecutiveFailures >= 5) {
+                if (terminal || consecutiveFailures >= 30) {
                   degraded = true;
                   send({
                     type: "degraded",
@@ -382,6 +382,7 @@ export async function POST(request: Request) {
                 type: "spend",
                 spend: {
                   used: budget.used + spent,
+                  spent,
                   budget: budget.budget,
                   unlimited: budget.unlimited || budget.byo,
                   degraded,
@@ -400,6 +401,7 @@ export async function POST(request: Request) {
           funnel,
           spend: {
             used: budget.used + spent,
+            spent,
             budget: budget.budget,
             unlimited: budget.unlimited || budget.byo,
             degraded,

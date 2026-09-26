@@ -279,6 +279,10 @@ CE Strategies works with 90+ First Nation communities; MapAki sells private, pas
 maps. So:
 
 - **No server-side persistence by default.** Processing is ephemeral.
+- **A results cache lives in this browser only** (IndexedDB, `lib/resultCache.ts`). It holds
+  classification labels and a SHA-256 hash of each post's text, never the text itself, so a
+  repeat load is free. Only paid ("jev") results are cached, capped at 200,000 entries. The
+  "Clear saved results" button and "Wipe everything" in the page footer both remove it.
 - PII redacted before display and before any Gemini call (`has_pii` gate).
 - Author handles hidden by default, revealable per record.
 - One-click export, one-click wipe.

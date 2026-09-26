@@ -146,3 +146,47 @@ export const CLASSIFIER_META = {
     hint: "Classified by local keyword rules, not the model. Either it was filtered out before the model ran, or the model was unavailable.",
   },
 } as const;
+
+/** Progress shape shared by the classify run and the funnel strip. `rate` is smoothed posts/s. */
+export interface RunProgress {
+  done: number;
+  total: number;
+  stage: string;
+  rate?: number;
+}
+
+/**
+ * Exponential moving average of throughput. Called on each progress callback with the posts
+ * finished since the previous one; cheap and allocation-free apart from the returned state.
+ */
+export function nextRate(
+  prev: { t: number; done: number; ema: number },
+  now: number,
+  done: number,
+): { t: number; done: number; ema: number } {
+  const dt = (now - prev.t) / 1000;
+  // Ignore bursts closer than 50 ms: instantaneous rates from tiny windows are pure noise.
+  if (dt < 0.05) return prev;
+  const inst = Math.max(0, done - prev.done) / dt;
+  const ema = prev.ema > 0 ? prev.ema * 0.7 + inst * 0.3 : inst;
+  return { t: now, done, ema };
+}
+
+/** "1,240 posts/s", rounded so it does not flicker in the last digit. */
+export function formatRate(perSecond: number): string {
+  const r = perSecond >= 100 ? Math.round(perSecond / 10) * 10 : Math.round(perSecond);
+  return `${count(r)} posts/s`;
+}
+
+/** "about 6 s left", "about 1 min 5 s left". Empty when there is nothing sensible to say. */
+export function formatEta(remaining: number, perSecond: number): string {
+  if (!(perSecond > 0) || remaining <= 0) return "";
+  const s = Math.max(1, Math.round(remaining / perSecond));
+  if (s < 60) return `about ${s} s left`;
+  return `about ${Math.floor(s / 60)} min ${s % 60} s left`;
+}
+
+/** "Classified 8,024 posts in 6.4 s". */
+export function formatClassified(n: number, ms: number): string {
+  return `Classified ${count(n)} posts in ${(ms / 1000).toFixed(1)} s`;
+}

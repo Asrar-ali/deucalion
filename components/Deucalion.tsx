@@ -26,9 +26,11 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 
 import gazetteer from "../data/gazetteer.json";
-import { CATEGORY_META, CATEGORY_ORDER, count, pct, usd } from "../lib/display";
+import { CATEGORY_META, CATEGORY_ORDER, count, nextRate, pct, usd, type RunProgress } from "../lib/display";
 import { demoEventProfile, isDemoMode, replayDemo } from "../lib/demo";
 import { runClassify } from "../lib/stream";
+import { geoparse } from "../lib/geoparse";
+import { browserStore, funnelDelta, partitionByCache, storeResults } from "../lib/resultCache";
 import type {
   Brief,
   Category,
@@ -36,9 +38,11 @@ import type {
   EventProfile,
   FloodRecord,
   FunnelCounts,
+  HazardType,
   SpendState,
 } from "../lib/types";
 import { FunnelStrip } from "./FunnelStrip";
+import { HazardBreakdown } from "./HazardBreakdown";
 import { Intake, type IngestResult } from "./Intake";
 import { RecordsTable, type SortKey } from "./RecordsTable";
 import { RecordDetail, type ReviewAction } from "./RecordDetail";
@@ -76,6 +80,8 @@ interface Filters {
   community: string | null;
   /** Hide posts the classifier says are about another hazard (bonus: multi-disaster files). */
   floodOnly: boolean;
+  /** Show only posts the classifier tagged with this hazard (breakdown panel on Summary). */
+  hazard: HazardType | null;
   /** Set when a summary theme is picked: show exactly that cluster's posts. */
   cluster: { label: string; ids: Set<string> } | null;
 }
@@ -88,6 +94,7 @@ const DEFAULT_FILTERS: Filters = {
   onlyRequests: false,
   community: null,
   floodOnly: false,
+  hazard: null,
   cluster: null,
 };
 
@@ -125,7 +132,9 @@ export function Deucalion() {
   const [profile, setProfile] = useState<EventProfile | null>(null);
   const [funnel, setFunnel] = useState<FunnelCounts | null>(null);
   const [spend, setSpend] = useState<SpendState | null>(null);
-  const [progress, setProgress] = useState<{ done: number; total: number; stage: string } | null>(null);
+  const [progress, setProgress] = useState<RunProgress | null>(null);
+  const [classifiedSummary, setClassifiedSummary] = useState<{ n: number; ms: number } | null>(null);
+  const rateRef = useRef({ t0: 0, t: 0, done: 0, ema: 0 });
   const [modelVersion, setModelVersion] = useState<string | null>(null);
   const [notices, setNotices] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -150,6 +159,8 @@ export function Deucalion() {
   const demoStarted = useRef(false);
 
   const [wipeConfirming, setWipeConfirming] = useState(false);
+  // Set when a run finishes, cleared by dismissal, a new load or a wipe. Shown as a polite status.
+  const [readyBanner, setReadyBanner] = useState<{ relevant: number; mappable: number } | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const wipeButtonRef = useRef<HTMLButtonElement>(null);
   // The in-flight classification, so wipe and unmount can stop it from writing data back.
@@ -286,6 +297,7 @@ export function Deucalion() {
     setBrief(null);
     setSelectedId(null);
     setIngestInfo(null);
+    setReadyBanner(null);
     setBusy(true);
     setView("map");
     void replayDemo({
@@ -298,6 +310,7 @@ export function Deucalion() {
         setBrief(finalBrief);
         setProgress(null);
         setBusy(false);
+        setReadyBanner({ relevant: finalFunnel.relevant, mappable: finalFunnel.mappable });
         notify("Demo data loaded and replayed. Nothing here was classified live.");
       },
     });
@@ -325,9 +338,11 @@ export function Deucalion() {
     setBrief(null);
     setSelectedId(null);
     setIngestInfo(null);
+    setReadyBanner(null);
     setSpend(null);
     setModelVersion(null);
     setProgress(null);
+    setClassifiedSummary(null);
     setBusy(false);
     setFilters(DEFAULT_FILTERS);
     setView("data");
@@ -336,9 +351,11 @@ export function Deucalion() {
     } catch {
       // A blocked storage API leaves nothing behind to remove; either way there is nothing left.
     }
+    // Saved classification results live in IndexedDB; the wipe clears them too. Never throws.
+    void browserStore.clear();
     setWipeConfirming(false);
     setNotices([]);
-    notify("Everything has been wiped. No reports, summaries or saved preferences remain on this device.");
+    notify("Everything has been wiped. No reports, summaries, saved results or saved preferences remain on this device.");
     // Focus goes to the page heading, the one element guaranteed to still be there once the
     // records, filters and brief panels have all disappeared from under the cursor.
     headingRef.current?.focus();
@@ -377,9 +394,52 @@ export function Deucalion() {
       setSelectedId(null);
       setBusy(true);
       setProgress({ done: 0, total: result.records.length, stage: "prefilter" });
+      setClassifiedSummary(null);
+      setReadyBanner(null);
+      rateRef.current = { t0: performance.now(), t: performance.now(), done: 0, ema: 0 };
       setView("map");
 
       const byId = new Map(result.records.map((r) => [r.id, r]));
+
+      // Posts classified earlier in this browser come straight from the local cache (free).
+      // Each hit is rebuilt the way the route builds it (labels plus a fresh geoparse of the
+      // row's own text and coordinates), and its funnel contribution is added client-side below,
+      // so counts match a network run. Only the misses are sent for classification.
+      const cacheKeys = new Map<string, string>();
+      const pendingWrites: FloodRecord[] = [];
+      let cachedFunnel = { prefiltered: 0, relevant: 0, mappable: 0, noPlaceMentioned: 0 };
+      let toClassify = result.records;
+      {
+        const part = await partitionByCache(browserStore, eventProfile, result.records, (base, labels) => {
+          const provided = base.places.find((p) => p.method === "provided");
+          return labels.has_place?.value === false && !provided
+            ? []
+            : geoparse({ text: base.text, lat: provided?.lat, lon: provided?.lon, method: provided?.method });
+        });
+        if (signal.aborted) return; // superseded or wiped while the cache was being read
+        for (const [id, key] of part.keys) cacheKeys.set(id, key);
+        if (!signal.aborted && part.hits.length) {
+          for (const r of part.hits) byId.set(r.id, r);
+          toClassify = part.misses;
+          cachedFunnel = funnelDelta(part.hits);
+          setRecords([...byId.values()]);
+          setFunnel((prev) => (prev ? { ...prev, ...cachedFunnel } : prev));
+          if (!toClassify.length) {
+            setClassifiedSummary({ n: result.records.length, ms: performance.now() - rateRef.current.t0 });
+            setReadyBanner({ relevant: cachedFunnel.relevant, mappable: cachedFunnel.mappable });
+          }
+          notify(
+            `${part.hits.length} ${part.hits.length === 1 ? "post" : "posts"} came from this browser's cache (no cost).`,
+          );
+        }
+      }
+      const addCached = (f: FunnelCounts): FunnelCounts => ({
+        ...f,
+        prefiltered: f.prefiltered + cachedFunnel.prefiltered,
+        relevant: f.relevant + cachedFunnel.relevant,
+        mappable: f.mappable + cachedFunnel.mappable,
+        noPlaceMentioned: f.noPlaceMentioned + cachedFunnel.noPlaceMentioned,
+      });
 
       // Records accumulate in the Map immediately, but React state is refreshed on a timer.
       // Refreshing on every streamed batch is quadratic in the record count: on the 53,000-row
@@ -394,21 +454,31 @@ export function Deucalion() {
         if (!dirty || signal.aborted) return;
         dirty = false;
         setRecords([...byId.values()]);
+        // Batched, fire-and-forget cache writes: never awaited, so the UI is not blocked.
+        if (pendingWrites.length) void storeResults(browserStore, cacheKeys, pendingWrites.splice(0));
       };
       const timer = setInterval(flushRecords, 500);
 
       try {
-      await runClassify(
-        { records: result.records, profile: eventProfile },
+      // Everything came from the cache: nothing to send, so no request and no spend.
+      if (toClassify.length > 0 || cachedFunnel.prefiltered === 0) await runClassify(
+        { records: toClassify, profile: eventProfile },
         {
           onRecordBatch: (batch) => {
-            for (const r of batch) byId.set(r.id, r);
+            for (const r of batch) {
+              byId.set(r.id, r);
+              if (r.classifier === "jev") pendingWrites.push(r);
+            }
             dirty = true;
           },
           // Each state-setting callback checks the signal: after a wipe the stream can still
           // deliver an event or two before the abort lands, and none may resurrect state.
           onProgress: (done, total, stage) => {
-            if (!signal.aborted) setProgress({ done, total, stage });
+            if (signal.aborted) return;
+            const rr = rateRef.current;
+            const upd = nextRate(rr, performance.now(), done);
+            rateRef.current = { ...upd, t0: rr.t0 };
+            setProgress({ done, total, stage, rate: upd.ema });
           },
           // Classify only ever sees the deduplicated set, so its `raw` is the post-dedupe
           // count and would quietly replace the real number of rows in the file. The client
@@ -419,7 +489,7 @@ export function Deucalion() {
             setFunnel((prev) =>
               prev
                 ? {
-                    ...next,
+                    ...addCached(next),
                     raw: prev.raw,
                     deduped: prev.deduped,
                     rejectedRows:
@@ -442,12 +512,14 @@ export function Deucalion() {
             if (signal.aborted) return;
             flushRecords();
             setFunnel((prev) =>
-              prev ? { ...finalFunnel, raw: prev.raw, deduped: prev.deduped } : finalFunnel,
+              prev ? { ...addCached(finalFunnel), raw: prev.raw, deduped: prev.deduped } : addCached(finalFunnel),
             );
             setSpend(finalSpend);
             if (version) setModelVersion(version);
+            setClassifiedSummary({ n: result.records.length, ms: performance.now() - rateRef.current.t0 });
             setProgress(null);
             setBusy(false);
+            setReadyBanner({ relevant: addCached(finalFunnel).relevant, mappable: addCached(finalFunnel).mappable });
           },
         },
         signal,
@@ -553,6 +625,7 @@ export function Deucalion() {
       if (filters.onlyMapped && !r.places.length) return false;
       if (filters.onlyRequests && !r.labels.is_request?.value) return false;
       if (filters.floodOnly && r.labels.hazard && r.labels.hazard.value !== "flood") return false;
+      if (filters.hazard && r.labels.hazard?.value !== filters.hazard) return false;
       if (filters.cluster && !filters.cluster.ids.has(r.id)) return false;
       if (filters.community && !r.places.some((p) => p.community?.name === filters.community)) return false;
       if (q && !r.text.toLowerCase().includes(q)) return false;
@@ -685,7 +758,41 @@ export function Deucalion() {
         </div>
       )}
 
-      <FunnelStrip funnel={funnel} progress={progress} />
+      {readyBanner && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 text-sm"
+          style={{ background: "var(--accent-weak)", color: "var(--text)" }}
+        >
+          <span className="flex-1">
+            Done. {count(readyBanner.relevant)} flood posts found, {count(readyBanner.mappable)} placed on the map.
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setView("map");
+              headingRef.current?.focus();
+            }}
+            className="rounded px-2 py-1 font-medium"
+            style={{ border: "1px solid var(--line-strong)", background: "var(--surface-raised)", borderRadius: "var(--radius)" }}
+          >
+            Open the map
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("reports")}
+            className="rounded px-2 py-1 font-medium"
+            style={{ border: "1px solid var(--line-strong)", background: "var(--surface-raised)", borderRadius: "var(--radius)" }}
+          >
+            See the reports
+          </button>
+          <button type="button" onClick={() => setReadyBanner(null)} aria-label="Dismiss">
+            <X size={12} aria-hidden />
+          </button>
+        </div>
+      )}
+
+      <FunnelStrip funnel={funnel} progress={progress} summary={classifiedSummary} />
 
       <nav aria-label="Views" className="flex items-center gap-4 overflow-x-auto border-b px-4" style={{ borderColor: "var(--line)" }}>
         {VIEW_META.map((v) => (
@@ -910,6 +1017,16 @@ export function Deucalion() {
             {records.length === 0 ? (
               <EmptyState message="Load data first to build a summary." ctaLabel="Load data" onCta={() => setView("data")} />
             ) : (
+              <>
+              <HazardBreakdown
+                records={records}
+                profile={profile}
+                active={filters.hazard}
+                onPick={(hazard) => {
+                  setFilters((f) => ({ ...f, hazard, floodOnly: hazard ? false : f.floodOnly }));
+                  if (hazard) setView("reports");
+                }}
+              />
               <BriefPanel
                 clusters={clusters}
                 brief={brief}
@@ -925,6 +1042,7 @@ export function Deucalion() {
                   setView("reports");
                 }}
               />
+              </>
             )}
           </div>
         )}
@@ -951,7 +1069,8 @@ export function Deucalion() {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span>
             Every label is a proposal with a confidence, not a verified fact. Nothing is stored on
-            the server.
+            the server. This browser keeps classification labels and post text hashes so a repeat
+            load is free; use Clear saved results or Wipe everything below to remove them.
           </span>
           {modelVersion && <span>{modelVersion}</span>}
           {reviewLog.length > 0 && (
@@ -1001,6 +1120,19 @@ export function Deucalion() {
               }}
             />
           )}
+          {!wipeConfirming && (
+            <button
+              type="button"
+              onClick={async () => {
+                await browserStore.clear();
+                notify("Saved results cleared from this browser.");
+              }}
+              className="rounded px-2 py-1 text-sm underline"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Clear saved results
+            </button>
+          )}
         </div>
       </footer>
     </div>
@@ -1028,8 +1160,8 @@ function WipeConfirmPanel({ onConfirm, onCancel }: { onConfirm: () => void; onCa
     >
       <Warning size={13} weight="bold" aria-hidden style={{ color: "var(--urgent)" }} />
       <span id="wipe-confirm-text" style={{ color: "var(--urgent)" }}>
-        Clear every loaded report, summary and saved preference on this device. This cannot be
-        undone.
+        Clear every loaded report, summary, saved result and saved preference on this device. This
+        cannot be undone.
       </span>
       <button
         type="button"
@@ -1270,10 +1402,29 @@ function FilterPanel({
           <input
             type="checkbox"
             checked={filters.floodOnly}
-            onChange={(e) => setFilters((f) => ({ ...f, floodOnly: e.target.checked }))}
+            onChange={(e) =>
+              setFilters((f) => ({
+                ...f,
+                floodOnly: e.target.checked,
+                hazard: e.target.checked ? null : f.hazard,
+              }))
+            }
           />
           <span style={{ color: "var(--text)" }}>Only posts about flooding</span>
         </label>
+        {filters.hazard && (
+          <div className="flex items-center gap-2 text-sm" style={{ color: "var(--text)" }}>
+            <span>Hazard: {filters.hazard}</span>
+            <button
+              type="button"
+              className="underline"
+              style={{ color: "var(--text-muted)" }}
+              onClick={() => setFilters((f) => ({ ...f, hazard: null }))}
+            >
+              Clear
+            </button>
+          </div>
+        )}
       </div>
 
       {communities.length > 0 && (
