@@ -8,9 +8,7 @@
     "prebuild": "node scripts/copy-maplibre-worker.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "copy:maplibre-worker": "node -e \"const f=require('fs');for(const n of ['maplibre-gl-worker.mjs','maplibre-gl-shared.mjs'])f.copyFileSync('node_modules/maplibre-gl/dist/'+n,'public/'+n)\"",
-    "prebuild": "npm run copy:maplibre-worker"
+    "lint": "eslint"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
