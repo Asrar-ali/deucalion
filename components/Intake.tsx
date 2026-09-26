@@ -254,6 +254,30 @@ export function Intake({
         Add reports
       </h2>
 
+      <div className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
+        <h3 className="font-medium" style={{ color: "var(--text)" }}>
+          Who this is for
+        </h3>
+        <ul className="flex flex-col gap-1">
+          <li>
+            <span className="font-medium" style={{ color: "var(--text)" }}>Community members:</span>{" "}
+            See if flooding is reaching your area, and who is asking for help.
+          </li>
+          <li>
+            <span className="font-medium" style={{ color: "var(--text)" }}>Leaders:</span>{" "}
+            See which communities and roads are affected and what to act on first.
+          </li>
+          <li>
+            <span className="font-medium" style={{ color: "var(--text)" }}>Emergency responders:</span>{" "}
+            See the most urgent posts first, with how sure we are about each place.
+          </li>
+        </ul>
+        <p>
+          Firsthand posts often appear before official data. Every result here is a proposal with a
+          confidence, never a confirmed fact.
+        </p>
+      </div>
+
       <button
         type="button"
         onClick={() => void loadSample()}

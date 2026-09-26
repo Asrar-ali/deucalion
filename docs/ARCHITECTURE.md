@@ -273,7 +273,7 @@ Seams that matter: `systemone.ts` knows nothing about floods. `questions.ts` kno
 HTTP. `geoparse.ts` makes no network calls. The UI consumes one record shape whether the source
 was a CSV row or a drone photo.
 
-## 6. Privacy & data sovereignty (OCAP)
+## 6. Privacy and data control (no framework compliance is claimed)
 
 CE Strategies works with 90+ First Nation communities; MapAki sells private, password-protected
 maps. So:
