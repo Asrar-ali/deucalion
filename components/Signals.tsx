@@ -166,6 +166,8 @@ export function PlaceChip({ place }: { place: PlaceHit }) {
           title={`Also possible: ${place.alternatives.map((a) => a.name).join(", ")}`}
         >
           +{place.alternatives.length} other
+          {/* title is hover-only; screen readers get the candidates as text. */}
+          <span className="sr-only">: also possible {place.alternatives.map((a) => a.name).join(", ")}</span>
         </span>
       ) : null}
     </span>
@@ -202,6 +204,7 @@ export function CommunityTag({ name }: { name: string }) {
       title="Matched by proximity to the community centroid, within 25km. Not a boundary determination."
     >
       {name}
+      <span className="sr-only">, matched by proximity within 25 km, not a boundary</span>
     </span>
   );
 }

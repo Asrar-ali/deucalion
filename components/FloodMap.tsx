@@ -129,10 +129,15 @@ function toPoints(records: FloodRecord[]): Point[] {
   const points: Point[] = [];
   for (const r of records) {
     for (const p of r.places) {
+      // A place without finite, in-range coordinates cannot be drawn, and handing one to
+      // easeTo/fitBounds throws "Invalid LngLat (NaN, NaN)" and takes the page down.
+      const lat = Number(p.lat);
+      const lon = Number(p.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) continue;
       points.push({
         id: r.id,
-        lon: p.lon,
-        lat: p.lat,
+        lon,
+        lat,
         category: r.labels.category?.value ?? "unknown",
         confidence: r.labels.relevant?.confidence ?? 0,
         exact: p.method !== "gazetteer",
@@ -234,7 +239,7 @@ export function FloodMap({
     reserveMarkers.current = RESERVES.map((r) => {
       const el = document.createElement("div");
       Object.assign(el.style, {
-        fontSize: "11px",
+        fontSize: "14px",
         background: "var(--surface-raised)",
         border: "1px solid var(--line)",
         padding: "1px 5px",
@@ -456,7 +461,7 @@ export function FloodMap({
           [Math.min(...lons), Math.min(...lats)],
           [Math.max(...lons), Math.max(...lats)],
         ],
-        { padding: 48, maxZoom: 10, duration: reduce ? 0 : undefined },
+        { padding: 48, maxZoom: 10, ...(reduce ? { duration: 0 } : {}) },
       );
     }
     hadPoints.current = points.length > 0;
@@ -521,12 +526,14 @@ export function FloodMap({
 
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const target = { center: [point.lon, point.lat] as [number, number], zoom: Math.max(instance.getZoom(), 8) };
-    instance.easeTo({ ...target, duration: reduce ? 0 : undefined });
+    // Never pass duration: undefined. MapLibre merges it over its default, divides by it and
+    // produces NaN camera positions ("Invalid LngLat (NaN, NaN)") on every frame.
+    instance.easeTo({ ...target, ...(reduce ? { duration: 0 } : {}) });
 
     const categoryLabel = point.category !== "unknown" ? CATEGORY_META[point.category].label : "Unclassified";
     const record = latestRecords.current.find((r) => r.id === point.id);
     const snippet = (record?.text ?? "").slice(0, 90);
-    setAnnouncement(`${index + 1} of ${pts.length}: ${categoryLabel}, ${point.label}. ${snippet}`);
+    setAnnouncement(`${index + 1} of ${pts.length}: ${categoryLabel}, ${point.label}, ${Math.round(point.confidence * 100)}% sure it is about the event. ${snippet}`);
   }
 
   function handleMapKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
@@ -597,7 +604,7 @@ export function FloodMap({
             className="rounded px-2 py-1 text-[11px]"
             style={{ background: "var(--review-weak)", color: "var(--review)" }}
           >
-            Basemap tiles unavailable. Points are still accurate.
+            Basemap tiles unavailable. Report positions are unaffected.
           </div>
         )}
       </div>

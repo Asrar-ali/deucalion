@@ -31,7 +31,7 @@
   position: absolute; left: -5px; right: -5px; height: 2px; z-index: 4;
   background: var(--review); outline: 1px solid var(--text);
 }
-.num { font-size: 12px; line-height: 1; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.num { font-size: 14px; line-height: 1; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .lgNum { font-size: 15px; font-weight: 600; color: var(--text); }
 @media (forced-colors: active) {
   .frame { border-color: CanvasText; }

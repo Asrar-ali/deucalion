@@ -21,7 +21,7 @@ export function StaffGauge({
         role="meter"
         aria-valuemin={0}
         aria-valuemax={1}
-        aria-valuenow={measured ? view.level : undefined}
+        aria-valuenow={measured ? view.level : 0}
         aria-valuetext={view.ariaText}
         aria-label={view.ariaText}
         className={cls}

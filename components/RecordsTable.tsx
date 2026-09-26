@@ -116,7 +116,7 @@ export function RecordsTable({
 
   return (
     <div className="overflow-auto">
-      <table className="w-full border-collapse text-xs">
+      <table className="w-full border-collapse text-sm">
         <caption className="sr-only">
           {count(records.length)} flood reports, sortable. Each row gives the report text, what it
           was classified as, how confident that classification is, and where it was placed.
@@ -158,7 +158,7 @@ export function RecordsTable({
               <tr
                 key={record.id}
                 onClick={() => onSelect(selected ? null : record.id)}
-                aria-selected={selected}
+                aria-current={selected ? "true" : undefined}
                 className="cursor-pointer align-top"
                 style={{
                   borderBottom: "1px solid var(--line)",
@@ -168,6 +168,7 @@ export function RecordsTable({
                 <td className="px-2 py-2">
                   <Icon
                     size={13}
+                    role="img"
                     aria-label={`Source: ${record.source}`}
                     style={{ color: "var(--text-faint)" }}
                   />
