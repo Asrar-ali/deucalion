@@ -20,6 +20,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 
 import type { EventProfile, FloodRecord, FunnelCounts } from "../lib/types";
+import { CHUNK_THRESHOLD_BYTES, ingestLargeCsv, readIngestResponse } from "./chunkedIngest";
 
 export interface IngestResult {
   records: FloodRecord[];
@@ -63,8 +64,9 @@ export function Intake({
     setWorking(label);
     try {
       const res = await fetch("/api/ingest", { method: "POST", body });
-      const data = (await res.json()) as IngestResult & { error?: string; detail?: unknown };
-      if (!res.ok) {
+      // Not res.json(): a 413 from the platform is plain text and threw "Unexpected token".
+      const data = await readIngestResponse(res);
+      if (!res.ok || data.error) {
         onError(data.error ?? `Ingest failed (${res.status}).`);
         return;
       }
@@ -92,6 +94,14 @@ export function Intake({
   };
 
   const onCsv = (file: File) => {
+    if (file.size > CHUNK_THRESHOLD_BYTES) {
+      setWorking("csv");
+      void ingestLargeCsv(file, undefined, () => {})
+        .then((merged) => onIngest(merged))
+        .catch((err) => onError(err instanceof Error ? err.message : "Could not read the file."))
+        .finally(() => setWorking(null));
+      return;
+    }
     const form = new FormData();
     form.set("file", file);
     void post("csv", form);

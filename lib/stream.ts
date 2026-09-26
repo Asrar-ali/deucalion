@@ -84,17 +84,94 @@ export async function runClassify(
   callbacks: ClassifyCallbacks & { onRecordBatch?: (records: FloodRecord[]) => void },
   signal?: AbortSignal,
 ): Promise<void> {
-  // A dropped connection makes fetch or the stream reader throw. Without this catch the
-  // rejection escaped to the caller, no notice appeared and the run failed silently.
-  try {
-    await classifyStream(payload, callbacks, signal);
-  } catch (err) {
-    if ((err as { name?: string })?.name === "AbortError") return;
-    callbacks.onError?.(
-      "Lost the connection while classifying. Posts already classified are kept; load the file again to finish the rest.",
-    );
+  // Vercel caps a request body at ~4.5 MB, so a large upload (the 61k-row bonus file is
+  // ~15 MB as JSON) is classified in batches. Funnel counts are summed across batches and
+  // onDone fires once, at the end, so callers see a single run.
+  const all = payload.records;
+  const batches: FloodRecord[][] = [];
+  for (let i = 0; i < all.length; i += CLASSIFY_BATCH) batches.push(all.slice(i, i + CLASSIFY_BATCH));
+  if (batches.length === 0) batches.push([]);
+
+  const sum = { prefiltered: 0, relevant: 0, mappable: 0, noPlaceMentioned: 0 };
+  const rejected: FunnelCounts["rejectedRows"] = [];
+  const combine = (f: FunnelCounts): FunnelCounts => ({
+    raw: all.length,
+    deduped: all.length,
+    prefiltered: sum.prefiltered + f.prefiltered,
+    relevant: sum.relevant + f.relevant,
+    mappable: sum.mappable + f.mappable,
+    noPlaceMentioned: sum.noPlaceMentioned + f.noPlaceMentioned,
+    rejectedRows: [...rejected, ...f.rejectedRows].slice(0, 200),
+  });
+
+  let received = 0;
+  let lastSpend: SpendState | undefined;
+  let modelVersion: string | undefined;
+  let failed = false;
+  let finalFunnel: FunnelCounts = combine({
+    raw: 0, deduped: 0, prefiltered: 0, relevant: 0, mappable: 0, noPlaceMentioned: 0, rejectedRows: [],
+  });
+
+  for (const batch of batches) {
+    let batchFunnel: FunnelCounts | undefined;
+    const countRecords = (n: number) => {
+      received += n;
+      if (batches.length > 1) callbacks.onProgress?.(received, all.length, "classify");
+    };
+    try {
+      await classifyStream({ ...payload, records: batch }, {
+        ...callbacks,
+        onRecordBatch: (records) => {
+          countRecords(records.length);
+          if (callbacks.onRecordBatch) callbacks.onRecordBatch(records);
+          else for (const r of records) callbacks.onRecord?.(r);
+        },
+        onRecord: undefined,
+        onProgress: batches.length > 1 ? undefined : callbacks.onProgress,
+        onFunnel: (f) => {
+          batchFunnel = f;
+          callbacks.onFunnel?.(combine(f));
+        },
+        onSpend: (s) => {
+          lastSpend = s;
+          callbacks.onSpend?.(s);
+        },
+        onError: (message) => {
+          failed = true;
+          callbacks.onError?.(message);
+        },
+        onDone: (f, s, v) => {
+          batchFunnel = f;
+          lastSpend = s;
+          modelVersion = v ?? modelVersion;
+        },
+      }, signal);
+    } catch (err) {
+      // A dropped connection makes fetch or the stream reader throw. Without this catch the
+      // rejection escaped to the caller, no notice appeared and the run failed silently.
+      if ((err as { name?: string })?.name === "AbortError") return;
+      callbacks.onError?.(
+        "Lost the connection while classifying. Posts already classified are kept; load the file again to finish the rest.",
+      );
+      return;
+    }
+    if (batchFunnel) {
+      finalFunnel = combine(batchFunnel);
+      sum.prefiltered += batchFunnel.prefiltered;
+      sum.relevant += batchFunnel.relevant;
+      sum.mappable += batchFunnel.mappable;
+      sum.noPlaceMentioned += batchFunnel.noPlaceMentioned;
+      rejected.push(...batchFunnel.rejectedRows);
+    }
+    // A budget block or server error on one batch will repeat on the next; stop and report once.
+    if (failed) return;
   }
+
+  if (lastSpend) callbacks.onDone?.(finalFunnel, lastSpend, modelVersion);
 }
+
+/** Records per classify request. ~2,500 records is ~1 MB of JSON, well under Vercel's cap. */
+const CLASSIFY_BATCH = 2500;
 
 async function classifyStream(
   payload: { records: FloodRecord[]; profile: unknown; byoKey?: string; accessCode?: string },
