@@ -16,6 +16,9 @@ import * as maplibregl from "maplibre-gl";
 import type { GeoJSONSource, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 
 import type { Category, FloodRecord } from "../lib/types";
+import { communityRollup } from "../lib/geoparse";
+import { CATEGORY_META } from "../lib/display";
+import gazetteerData from "../data/gazetteer.json";
 
 // MapLibre 6 resolves its worker relative to import.meta.url, which the bundler rewrites into
 // /_next/static/chunks/ without emitting the worker there. scripts/copy-maplibre-worker.mjs
@@ -48,6 +51,69 @@ const CATEGORY_COLOR: Record<Category, string> = {
   aid: "#1f8f8f",
   sentiment: "#8a8f98",
 };
+
+/** Only the fields FloodMap needs from a gazetteer entry. */
+interface ReserveEntry {
+  name: string;
+  lat: number;
+  lon: number;
+  kind: string;
+  community?: string;
+}
+
+/** Reserve points, for the "not a boundary" ring overlay. Same 25 km proximity radius the
+ * geoparsing pipeline uses to attribute a coordinate to a First Nations community. */
+const RESERVES: ReserveEntry[] = (
+  gazetteerData as { places: ReserveEntry[] }
+).places.filter((p) => p.kind === "reserve");
+
+/** Resolve a CSS custom property to the colour the browser is actually using, since MapLibre
+ * paint expressions cannot read `var(...)` themselves. Falls back to the literal when the
+ * variable is unset (e.g. server-side render, or a stylesheet that has not loaded yet). */
+function cssVar(name: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  if (!value) return fallback;
+  // The design tokens are OKLCH, which MapLibre's colour parser rejects: an invalid paint
+  // colour fails addLayer, fires the map "error" event and silently drops the cluster layer.
+  // Paint one pixel with the token and read it back as plain sRGB instead.
+  try {
+    const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+    if (!ctx) return fallback;
+    ctx.fillStyle = fallback;
+    ctx.fillStyle = value;
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+    return `rgba(${r}, ${g}, ${b}, ${(a / 255).toFixed(3)})`;
+  } catch {
+    return fallback;
+  }
+}
+
+/** A ~64-vertex polygon approximating a 25 km radius circle around a point. Degrees, not
+ * metres, so longitude is corrected for latitude -- otherwise circles near the pole are ovals. */
+function reserveRingCoords(lat: number, lon: number, radiusKm = 25): GeoJSON.Position[] {
+  const steps = 64;
+  const dLat = radiusKm / 111.32;
+  const dLon = radiusKm / (111.32 * Math.cos((lat * Math.PI) / 180));
+  const coords: GeoJSON.Position[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const angle = (i / steps) * 2 * Math.PI;
+    coords.push([lon + dLon * Math.sin(angle), lat + dLat * Math.cos(angle)]);
+  }
+  return coords;
+}
+
+function reservesGeoJson(): GeoJSON.FeatureCollection<GeoJSON.Polygon> {
+  return {
+    type: "FeatureCollection",
+    features: RESERVES.map((r) => ({
+      type: "Feature",
+      geometry: { type: "Polygon", coordinates: [reserveRingCoords(r.lat, r.lon)] },
+      properties: { name: r.name, community: r.community ?? r.name },
+    })),
+  };
+}
 
 interface Point {
   id: string;
@@ -119,6 +185,21 @@ export function FloodMap({
   const points = useMemo(() => toPoints(records), [records]);
   const latestPoints = useRef(points);
   latestPoints.current = points;
+  const latestRecords = useRef(records);
+  latestRecords.current = records;
+
+  // Whether the point set has ever been non-empty, so the initial-fit effect fires once per
+  // empty-to-loaded transition rather than on every filter change.
+  const hadPoints = useRef(false);
+
+  // One DOM marker per reserve, created once and repositioned/relabelled as data changes.
+  const reserveMarkers = useRef<maplibregl.Marker[]>([]);
+
+  // Keyboard path to every point on the map, for a keyboard- or screen-reader-only user.
+  const [focusIndex, setFocusIndex] = useState<number | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  const [showKeyboardHint, setShowKeyboardHint] = useState(false);
+  const focusMarker = useRef<maplibregl.Marker | null>(null);
 
   // Create the map once. Re-creating it on every style change would reset the viewport and
   // throw away the user's pan and zoom, which is infuriating mid-triage.
@@ -144,11 +225,66 @@ export function FloodMap({
     instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     instance.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
+    // MapLibre's own keyboard handler pans/zooms on these same arrow keys; our keyboard path
+    // (below) moves between reports instead, so the built-in one would just fight it.
+    instance.keyboard.disable();
+
+    // Reserve labels are plain DOM markers, not a map layer, so they do not need to be rebuilt
+    // on "style.load" -- only the source/layer that draws the rings does.
+    reserveMarkers.current = RESERVES.map((r) => {
+      const el = document.createElement("div");
+      Object.assign(el.style, {
+        fontSize: "11px",
+        background: "var(--surface-raised)",
+        border: "1px solid var(--line)",
+        padding: "1px 5px",
+        borderRadius: "3px",
+        color: "var(--text)",
+        pointerEvents: "none",
+        whiteSpace: "nowrap",
+      });
+      el.textContent = r.community ?? r.name;
+      // Anchored at the south edge of the 25 km ring, not the centre: DOM markers always draw
+      // above the canvas, and a centred label sat on top of the Calgary cluster next door.
+      return new maplibregl.Marker({ element: el, anchor: "top" })
+        .setLngLat([r.lon, r.lat - 25 / 111.32])
+        .addTo(instance);
+    });
+
+    // Label only communities with posts until the user zooms in, so 19 labels do not bury
+    // the report clusters at province scale.
+    const syncReserveLabels = () => {
+      const zoomedIn = instance.getZoom() >= 8;
+      for (const m of reserveMarkers.current) {
+        const el = m.getElement();
+        el.style.display = zoomedIn || el.dataset.posts === "1" ? "" : "none";
+      }
+    };
+    instance.on("zoomend", syncReserveLabels);
+    instance.once("load", syncReserveLabels);
+
     appliedStyle.current = lowBandwidth ? BLANK_STYLE : dark ? CARTO_DARK : CARTO_LIGHT;
 
     // Every setStyle drops our sources and layers, and "load" fires only once, so rebuild on
     // "style.load", which fires for the initial style and after every swap.
     instance.on("style.load", () => {
+      const accentColor = cssVar("--accent", "#3f6fd6");
+      const surfaceRaisedColor = cssVar("--surface-raised", "#ffffff");
+      const ringColor = cssVar("--text", "#333");
+
+      // Added first so it paints beneath the report layers below.
+      instance.addSource("reserves", { type: "geojson", data: reservesGeoJson() });
+      instance.addLayer({
+        id: "reserve-rings",
+        type: "line",
+        source: "reserves",
+        paint: {
+          "line-color": ringColor,
+          "line-width": 1.2,
+          "line-dasharray": [4, 3],
+        },
+      });
+
       instance.addSource("reports", {
         type: "geojson",
         data: toGeoJson([]),
@@ -163,11 +299,11 @@ export function FloodMap({
         source: "reports",
         filter: ["has", "point_count"],
         paint: {
-          "circle-color": "#3f6fd6",
+          "circle-color": accentColor,
           "circle-opacity": 0.75,
           "circle-radius": ["step", ["get", "point_count"], 14, 25, 20, 100, 28],
           "circle-stroke-width": 1.5,
-          "circle-stroke-color": "#ffffff",
+          "circle-stroke-color": surfaceRaisedColor,
         },
       });
 
@@ -180,7 +316,7 @@ export function FloodMap({
           "text-field": ["get", "point_count_abbreviated"],
           "text-size": 11,
         },
-        paint: { "text-color": "#ffffff" },
+        paint: { "text-color": surfaceRaisedColor },
       });
 
       instance.addLayer({
@@ -222,7 +358,7 @@ export function FloodMap({
           "circle-color": "transparent",
           "circle-radius": 14,
           "circle-stroke-width": 2.5,
-          "circle-stroke-color": "#3f6fd6",
+          "circle-stroke-color": accentColor,
         },
       });
 
@@ -274,6 +410,10 @@ export function FloodMap({
 
     map.current = instance;
     return () => {
+      reserveMarkers.current.forEach((m) => m.remove());
+      reserveMarkers.current = [];
+      focusMarker.current?.remove();
+      focusMarker.current = null;
       instance.remove();
       map.current = null;
     };
@@ -302,6 +442,44 @@ export function FloodMap({
     source?.setData(toGeoJson(points));
   }, [points, ready]);
 
+  // Fit the camera to the data once, the moment a dataset goes from empty to loaded. Filtering
+  // afterwards must not keep yanking the viewport around, so this only fires on that transition.
+  useEffect(() => {
+    const instance = map.current;
+    if (!instance || !ready) return;
+    if (points.length && !hadPoints.current) {
+      const lons = points.map((p) => p.lon);
+      const lats = points.map((p) => p.lat);
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      instance.fitBounds(
+        [
+          [Math.min(...lons), Math.min(...lats)],
+          [Math.max(...lons), Math.max(...lats)],
+        ],
+        { padding: 48, maxZoom: 10, duration: reduce ? 0 : undefined },
+      );
+    }
+    hadPoints.current = points.length > 0;
+  }, [points, ready]);
+
+  // Relabel the reserve markers whenever the record set changes -- the count is how many of
+  // the records currently passed to the map name a place within 25 km of that community.
+  useEffect(() => {
+    const counts = new Map(communityRollup(records).map((c) => [c.name, c.count]));
+    reserveMarkers.current.forEach((marker, i) => {
+      const reserve = RESERVES[i];
+      if (!reserve) return;
+      const label = reserve.community ?? reserve.name;
+      const n = counts.get(label) ?? 0;
+      const el = marker.getElement();
+      el.textContent = n > 0 ? `${label}, ${n} ${n === 1 ? "post" : "posts"}` : label;
+      el.style.fontWeight = n > 0 ? "600" : "400";
+      el.dataset.posts = n > 0 ? "1" : "0";
+      const zoomedIn = (map.current?.getZoom() ?? 0) >= 8;
+      el.style.display = zoomedIn || n > 0 ? "" : "none";
+    });
+  }, [records]);
+
   // Follow the selection, and highlight it.
   useEffect(() => {
     const instance = map.current;
@@ -316,9 +494,113 @@ export function FloodMap({
     else instance.easeTo({ ...target, duration: 500 });
   }, [selectedId, points, ready]);
 
+  // Move the keyboard focus marker to `index`, pan the camera to it, and announce it. This is
+  // the keyboard- and screen-reader-accessible path to a point that the mouse-only cluster
+  // layer cannot offer on its own.
+  function moveKeyboardFocus(index: number) {
+    const instance = map.current;
+    const pts = latestPoints.current;
+    const point = pts[index];
+    if (!instance || !point) return;
+
+    if (!focusMarker.current) {
+      const el = document.createElement("div");
+      Object.assign(el.style, {
+        width: "26px",
+        height: "26px",
+        borderRadius: "50%",
+        border: "3px solid var(--accent)",
+        background: "transparent",
+        boxSizing: "border-box",
+        pointerEvents: "none",
+      });
+      focusMarker.current = new maplibregl.Marker({ element: el }).setLngLat([point.lon, point.lat]).addTo(instance);
+    } else {
+      focusMarker.current.setLngLat([point.lon, point.lat]);
+    }
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const target = { center: [point.lon, point.lat] as [number, number], zoom: Math.max(instance.getZoom(), 8) };
+    instance.easeTo({ ...target, duration: reduce ? 0 : undefined });
+
+    const categoryLabel = point.category !== "unknown" ? CATEGORY_META[point.category].label : "Unclassified";
+    const record = latestRecords.current.find((r) => r.id === point.id);
+    const snippet = (record?.text ?? "").slice(0, 90);
+    setAnnouncement(`${index + 1} of ${pts.length}: ${categoryLabel}, ${point.label}. ${snippet}`);
+  }
+
+  function handleMapKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const pts = latestPoints.current;
+    if (e.key === "Enter") {
+      if (focusIndex != null && pts[focusIndex]) onSelect(pts[focusIndex].id);
+      return;
+    }
+    if (e.key === "Escape") {
+      focusMarker.current?.remove();
+      focusMarker.current = null;
+      setFocusIndex(null);
+      setAnnouncement("");
+      return;
+    }
+    const forward = e.key === "ArrowRight" || e.key === "ArrowDown";
+    const backward = e.key === "ArrowLeft" || e.key === "ArrowUp";
+    if (!forward && !backward) return;
+    e.preventDefault();
+    if (!pts.length) return;
+    setFocusIndex((prev) => {
+      const next = prev == null ? 0 : Math.min(Math.max(prev + (forward ? 1 : -1), 0), pts.length - 1);
+      moveKeyboardFocus(next);
+      return next;
+    });
+  }
+
   return (
     <div className="relative h-full w-full">
-      <div ref={container} className="h-full w-full" role="application" aria-label="Map of flood reports" />
+      <div
+        ref={container}
+        className="h-full w-full"
+        role="application"
+        aria-label={`Map of ${points.length} mapped reports. Use the arrow keys to move between reports and Enter to open one.`}
+        tabIndex={0}
+        onKeyDown={handleMapKeyDown}
+        onFocus={() => setShowKeyboardHint(true)}
+        onBlur={() => setShowKeyboardHint(false)}
+      />
+
+      <div
+        aria-live="polite"
+        className="sr-only"
+        style={{
+          position: "absolute",
+          width: "1px",
+          height: "1px",
+          overflow: "hidden",
+          clip: "rect(0 0 0 0)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {announcement}
+      </div>
+
+      <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
+        {showKeyboardHint && (
+          <div
+            className="rounded px-2 py-1 text-[11px]"
+            style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", color: "var(--text)" }}
+          >
+            Arrow keys move between reports. Enter opens one.
+          </div>
+        )}
+
+        {failed && (
+          <div
+            className="rounded px-2 py-1 text-[11px]"
+            style={{ background: "var(--review-weak)", color: "var(--review)" }}
+          >
+            Basemap tiles unavailable. Points are still accurate.
+          </div>
+        )}
+      </div>
 
       {!points.length && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
@@ -328,15 +610,6 @@ export function FloodMap({
           >
             No mapped reports yet. Records that name no place are listed in the table.
           </p>
-        </div>
-      )}
-
-      {failed && (
-        <div
-          className="absolute bottom-2 left-2 rounded px-2 py-1 text-[11px]"
-          style={{ background: "var(--review-weak)", color: "var(--review)" }}
-        >
-          Basemap tiles unavailable. Points are still accurate.
         </div>
       )}
 
@@ -353,6 +626,13 @@ export function FloodMap({
         </div>
         <div>
           <strong style={{ color: "var(--text)" }}>Dot size</strong> confidence
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span
+            aria-hidden="true"
+            style={{ display: "inline-block", width: "14px", borderTop: "1.5px dashed var(--text-muted)" }}
+          />
+          First Nation, 25 km matching radius (proximity, not a boundary)
         </div>
       </div>
     </div>
