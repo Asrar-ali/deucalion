@@ -32,6 +32,8 @@ import { CATEGORY_META, CATEGORY_ORDER, count, nextRate, pct, usd, type RunProgr
 import { demoEventProfile, isDemoMode, replayDemo } from "../lib/demo";
 import { runClassify } from "../lib/stream";
 import { geoparse } from "../lib/geoparse";
+import { toBriefMarkdown, toCsv, toGeoJSON, toSmsDigest } from "../lib/export";
+import { buildExtractiveBrief, clusterRecords } from "../lib/summarize";
 import { browserStore, funnelDelta, partitionByCache, storeResults } from "../lib/resultCache";
 import type {
   Brief,
@@ -50,6 +52,25 @@ import { RecordsTable, type SortKey } from "./RecordsTable";
 import { RecordDetail, type ReviewAction } from "./RecordDetail";
 import { AskPanel } from "./AskPanel";
 import { BackToTop } from "./BackToTop";
+
+/**
+ * Strips fields the server-side summarize/export/ask routes never read before a record set
+ * goes over the wire. rawText and imageRef (a data URL) are the two heavy ones; on the full
+ * 8,000-row Alberta file this is the difference between fitting under the platform's request
+ * size limit and a 413.
+ */
+function forWire(records: FloodRecord[]): FloodRecord[] {
+  return records.map(({ rawText, imageRef, ...rest }) => rest);
+}
+
+/** JSON.parse that returns undefined instead of throwing, for a response that may be plain text. */
+function safeJsonParse<T>(text: string): T | undefined {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return undefined;
+  }
+}
 
 const HAZARD_NOUN: Record<string, string> = {
   flood: "the flood",
@@ -611,31 +632,51 @@ export function Deucalion() {
     [records.length, profile, onIngest, notify],
   );
 
-  /** Summaries are requested explicitly. The narrative costs quota; the clusters do not. */
+  /**
+   * Clustering and the extractive brief are pure, free and local, so they always run on this
+   * machine -- no size limit, no round trip. Sending the whole record set to the server used
+   * to be the only way to build these, and on the full ~8,000-row file that request landed
+   * right at the platform's size limit and failed with a 413. Only the narrative sentence
+   * actually needs the server (it needs the API key), so that call carries just the handful
+   * of representative posts the clusters already picked out, never the full set.
+   */
   const summarise = useCallback(
     async (withNarrative: boolean) => {
       if (!records.length) return;
+      const localClusters = clusterRecords(records);
+      const localExtractive = buildExtractiveBrief(records, localClusters);
+      setClusters(localClusters);
+      setBrief((prev) => ({ extractive: localExtractive, narrative: prev?.narrative, plainLanguage: prev?.plainLanguage }));
+      if (!withNarrative) return;
+
+      const repIds = new Set(localClusters.flatMap((c) => c.representativeIds));
+      const narrativeRecords = forWire(records.filter((r) => repIds.has(r.id)));
       try {
         const res = await fetch("/api/summarize", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ records, scope: { kind: "all" }, narrative: withNarrative }),
+          body: JSON.stringify({ records: narrativeRecords, scope: { kind: "all" }, narrative: true }),
         });
-        const data = (await res.json()) as { clusters?: Cluster[]; brief?: Brief; error?: string };
+        // A body the platform rejects as too large comes back as plain text, not JSON, and
+        // res.json() throws on it -- read as text first so that shows up as a real message
+        // rather than a raw "Unexpected token" parse error.
+        const raw = await res.text();
+        const data = safeJsonParse<{ brief?: Brief; error?: string }>(raw) ?? {};
         if (!res.ok) {
           notify(
             data.error ??
-              `Could not build a summary (${res.status}). The filters and map still work; try again in a moment.`,
+              (res.status === 413
+                ? "That file is too large for a narrative right now. The extractive summary above still works."
+                : `Could not write a narrative (${res.status}). The extractive summary above still works.`),
           );
           return;
         }
-        setClusters(data.clusters ?? []);
-        setBrief(data.brief ?? null);
+        setBrief({ extractive: localExtractive, narrative: data.brief?.narrative, plainLanguage: data.brief?.plainLanguage });
       } catch (err) {
         notify(
           err instanceof Error
             ? err.message
-            : "Could not build a summary. The filters and map still work; try again in a moment.",
+            : "Could not write a narrative. The extractive summary above still works.",
         );
       }
     },
@@ -655,24 +696,53 @@ export function Deucalion() {
   }, [view, busy, brief, records, summarise]);
 
   const download = useCallback(
-    async (format: "geojson" | "csv" | "brief" | "sms") => {
+    (format: "geojson" | "csv" | "brief" | "sms") => {
+      // Every export format is pure formatting over data already held in this browser -- none
+      // of them call a model -- so this runs entirely client-side. Round-tripping the full
+      // record set through /api/export used to send the whole 8,000-row file as one request
+      // body, which on the full Alberta dataset landed right at the platform's request-size
+      // limit and failed with a 413 the user could not do anything about.
       try {
-        const res = await fetch("/api/export", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ records, format, clusters, brief, profile, funnel }),
-        });
-        if (!res.ok) {
-          notify(`Export failed (${res.status}). Try again, or download the CSV instead.`);
-          return;
+        const stamp = new Date().toISOString().slice(0, 10);
+        let content: string;
+        let mimeType: string;
+        let filename: string;
+        if (format === "geojson") {
+          content = JSON.stringify(toGeoJSON(records).collection);
+          mimeType = "application/geo+json";
+          filename = `deucalion-export-${stamp}.geojson`;
+        } else if (format === "csv") {
+          content = toCsv(records);
+          mimeType = "text/csv;charset=utf-8";
+          filename = `deucalion-export-${stamp}.csv`;
+        } else {
+          const localClusters = clusters.length ? clusters : clusterRecords(records);
+          const localBrief: Brief = brief ?? { extractive: buildExtractiveBrief(records, localClusters) };
+          const localProfile: EventProfile = profile ?? {
+            hazard: "other", places: [], terms: [], userEdited: false,
+          };
+          const relevant = records.filter((r) => r.labels.relevant?.value === true);
+          const mappable = relevant.filter((r) => r.places.length > 0);
+          const localFunnel: FunnelCounts = funnel ?? {
+            raw: records.length, deduped: records.length, prefiltered: records.length,
+            relevant: relevant.length, mappable: mappable.length,
+            noPlaceMentioned: relevant.length - mappable.length, rejectedRows: [],
+          };
+          if (format === "brief") {
+            content = toBriefMarkdown(records, localClusters, localBrief, localProfile, localFunnel);
+            mimeType = "text/markdown;charset=utf-8";
+            filename = `deucalion-brief-${stamp}.md`;
+          } else {
+            content = toSmsDigest(records);
+            mimeType = "text/plain;charset=utf-8";
+            filename = `deucalion-sms-${stamp}.txt`;
+          }
         }
-        const blob = await res.blob();
+        const blob = new Blob([content], { type: mimeType });
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
         anchor.href = url;
-        anchor.download =
-          res.headers.get("content-disposition")?.match(/filename="?([^"]+)"?/)?.[1] ??
-          `deucalion.${format}`;
+        anchor.download = filename;
         // Firefox only starts the download if the anchor is in the document when clicked.
         // Revoking the blob URL in the same tick can also cancel the download before the
         // browser has read it, so the revoke is deferred instead of running right after click.
@@ -681,9 +751,7 @@ export function Deucalion() {
         anchor.remove();
         setTimeout(() => URL.revokeObjectURL(url), 30_000);
       } catch (err) {
-        notify(
-          err instanceof Error ? err.message : "Export failed. Try again, or download the CSV instead.",
-        );
+        notify(err instanceof Error ? err.message : "Export failed. Try again, or download the CSV instead.");
       }
     },
     [records, clusters, brief, profile, funnel, notify],
