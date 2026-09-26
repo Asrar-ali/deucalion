@@ -103,7 +103,27 @@ export interface FloodRecord {
 
 /** Derived from the corpus, shown to the user, editable. This is how we generalise. */
 export interface EventProfile {
+  /**
+   * The hazard the pipeline is focused on. For a single-hazard corpus this is the detected
+   * one. For a mixed corpus it is the deliberate target (flood), NOT a guess: see
+   * `focusProfile` in lib/prefilter.ts.
+   */
   hazard: HazardType;
+  /**
+   * True when two or more hazards each hold a substantial share of the corpus (a world
+   * disaster feed rather than one event). Detection alone would name whichever hazard has
+   * the most raw term volume, which is meaningless for a mixed file.
+   */
+  mixed?: boolean;
+  /** What auto-detection found before any focusing, so the UI can say so honestly. */
+  detectedHazard?: HazardType;
+  /** Share of hazard-keyword mentions per hazard, 0..1. Shown to explain a mixed verdict. */
+  hazardShares?: Partial<Record<HazardType, number>>;
+  /**
+   * True when `hazard` was chosen deliberately rather than guessed. The prefilter then stops
+   * giving credit to other hazards' vocabulary, because the target is known.
+   */
+  focused?: boolean;
   /** Place names that dominate the corpus. */
   places: string[];
   /** Distinctive terms used to score similarity. */

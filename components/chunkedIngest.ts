@@ -11,7 +11,7 @@
 import Papa from "papaparse";
 
 import { knownPlaceAliases } from "../lib/geoparse";
-import { detectEventProfile, normalize } from "../lib/prefilter";
+import { detectEventProfile, focusProfile, normalize } from "../lib/prefilter";
 import type { FloodRecord } from "../lib/types";
 import type { IngestResult } from "./Intake";
 
@@ -83,10 +83,13 @@ export async function ingestLargeCsv(
     onProgress(c + 1, chunkCount);
   }
 
-  const profile = detectEventProfile(
-    merged.map((r) => r.text).filter(Boolean),
-    { knownPlaces: knownPlaceAliases() },
-  );
+  // Detection then focus, exactly as /api/ingest does for a single request. Recomputing the
+  // profile here with detection alone silently undid the server's focus: a mixed world feed
+  // came back mixed:true but still hazard "storm", unfocused, which is the original bug
+  // reintroduced through the large-file path.
+  const mergedTexts = merged.map((r) => r.text).filter(Boolean);
+  const profileOpts = { knownPlaces: knownPlaceAliases() };
+  const profile = focusProfile(detectEventProfile(mergedTexts, profileOpts), mergedTexts, profileOpts);
 
   return {
     records: merged,

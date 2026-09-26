@@ -88,7 +88,7 @@ export function dedupe<T extends { id: string; text: string }>(
  * match "evacuated" or "evacuations" because the word continues. That bug silently
  * emptied a whole category once already — do not reintroduce it.
  */
-const HAZARD_LEXICON: Record<HazardType, RegExp> = {
+export const HAZARD_LEXICON: Record<HazardType, RegExp> = {
   // No leading \b on the stems. Hashtags compound the hazard word into a longer token —
   // #yycflood, #abflood, #yycfloods — and \bflood cannot match inside "yycflood" because
   // there is no boundary between "yyc" and "flood". That one detail loses the 3,192 most
@@ -120,6 +120,34 @@ export interface ProfileOptions {
   sampleSize?: number;
 }
 
+/**
+ * Ranks gazetteer names by how many posts mention them, on whole-token boundaries.
+ *
+ * This used to be a bare `includes()`. That is wrong for a gazetteer that carries short aliases
+ * such as airport codes and road numbers: "yxe" (Saskatoon) and "hwy 2" fired inside unrelated
+ * text, so the header of a flood view read "near victoria, winnipeg, houston, morley, hwy 2,
+ * yxe". A boundary-checked match is what makes the "detected event" line trustworthy.
+ */
+function rankPlaces(sample: string[], names: string[], limit = 8): string[] {
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const hits: Array<[string, number]> = [];
+
+  for (const name of names) {
+    // Skip anything under 3 characters outright: even boundary-checked, "sg" or "nj" are more
+    // likely to be a hashtag fragment than a place in a world feed.
+    if (name.length < 3) continue;
+    const re = new RegExp(`(?<![a-z0-9])${escape(name.toLowerCase())}(?![a-z0-9])`);
+    let n = 0;
+    for (const t of sample) if (re.test(t.toLowerCase())) n++;
+    if (n > 0) hits.push([name, n]);
+  }
+
+  return hits
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([name]) => name);
+}
+
 export function detectEventProfile(
   texts: string[],
   opts: ProfileOptions = {},
@@ -144,6 +172,21 @@ export function detectEventProfile(
   const clearWinner = !second || top[1] >= second[1] * 1.5;
   const hazard: HazardType = enoughSignal && clearWinner ? top[0] : "other";
 
+  // --- is this ONE event, or a feed of several? Measured on the two corpora we have:
+  //   Alberta 2013 floods   flood 97%, fire 2%, storm 0%, quake 0%   -> one hazard
+  //   CE Strategies bonus   storm 50%, flood 32%, quake 9%, fire 8%  -> mixed
+  // "Two or more hazards each holding at least 15% of the hazard mentions" separates them
+  // with a wide margin either side (nothing in Alberta reaches 15% besides flood, and the
+  // bonus file has three above it). Naming a single dominant hazard for the second case is
+  // meaningless: storm "wins" on raw volume while flood is the thing the task asks about.
+  const mentionTotal = [...hazardCounts.values()].reduce((a, b) => a + b, 0);
+  const hazardShares: Partial<Record<HazardType, number>> = {};
+  if (mentionTotal > 0) {
+    for (const [h, n] of hazardCounts) hazardShares[h] = n / mentionTotal;
+  }
+  const substantial = Object.values(hazardShares).filter((s) => (s ?? 0) >= 0.15).length;
+  const mixed = enoughSignal && substantial >= 2;
+
   // --- distinctive terms: frequent, non-stopword, and not present in nearly everything
   const freq = new Map<string, number>();
   for (const t of sample) {
@@ -156,24 +199,51 @@ export function detectEventProfile(
     .map(([term]) => term);
 
   // --- places: only names the gazetteer actually knows, ranked by how often they appear
-  const places: string[] = [];
-  if (opts.knownPlaces?.length) {
-    const hits = new Map<string, number>();
-    for (const name of opts.knownPlaces) {
-      const needle = name.toLowerCase();
-      let n = 0;
-      for (const t of sample) if (t.toLowerCase().includes(needle)) n++;
-      if (n > 0) hits.set(name, n);
-    }
-    places.push(
-      ...[...hits.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 8)
-        .map(([name]) => name),
-    );
-  }
+  const places: string[] = opts.knownPlaces?.length ? rankPlaces(sample, opts.knownPlaces) : [];
 
-  return { hazard, places, terms, userEdited: false };
+  return {
+    hazard,
+    places,
+    terms,
+    userEdited: false,
+    mixed,
+    detectedHazard: hazard,
+    hazardShares,
+  };
+}
+
+/**
+ * The policy layer on top of detection. When a corpus is mixed, "the dominant hazard" is not a
+ * meaningful thing to detect, so we stop guessing and focus on the hazard this tool exists for.
+ * That is a decision, made openly and shown to the user, not a silent heuristic.
+ *
+ * Also recomputes the place list from posts that actually mention the focus hazard. Otherwise a
+ * mixed file's header would read "near Boston, Texas" for a flood view, because those places
+ * dominate the corpus overall.
+ */
+export function focusProfile(
+  profile: EventProfile,
+  texts: string[],
+  opts: ProfileOptions = {},
+  target: HazardType = "flood",
+): EventProfile {
+  if (!profile.mixed || profile.userEdited) return profile;
+
+  const re = HAZARD_LEXICON[target];
+  const relevantTexts = texts.filter((t) => re.test(t));
+
+  const sample =
+    relevantTexts.length > (opts.sampleSize ?? 2000)
+      ? relevantTexts.filter((_, i) => i % Math.ceil(relevantTexts.length / (opts.sampleSize ?? 2000)) === 0)
+      : relevantTexts;
+  const places = opts.knownPlaces?.length && sample.length ? rankPlaces(sample, opts.knownPlaces) : [];
+
+  return {
+    ...profile,
+    hazard: target,
+    focused: true,
+    places: places.length ? places : profile.places,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -202,10 +272,37 @@ export function scoreRelevance(text: string, profile: EventProfile): PrefilterSc
   const likelySpam = SPAM_PATTERNS.some((re) => re.test(text));
   if (likelySpam) reasons.push("matches spam pattern");
 
+  // The detected profile is a corpus-wide GUESS of the dominant hazard, and it is only ever
+  // one label. A corpus that genuinely mixes disasters (the CE Strategies bonus round: a
+  // world CSV spanning floods, fires, quakes, storms and explosions) can have its guess land
+  // on the wrong one by raw term volume, e.g. "storm" winning on Boston/hurricane counts.
+  // Scoring ONLY the guessed hazard's lexicon then silently drops every post about a
+  // different hazard before it ever reaches the classifier -- including posts that say
+  // "flood" outright. Measured on the bonus corpus: "Bangladesh flood death toll rises" and
+  // "Flooding in Sardinia after storm" both scored under the 0.15 threshold and were dropped.
+  //
+  // Fix: check the guessed hazard for its full weight (rewards a real single-hazard corpus,
+  // e.g. Alberta, exactly as before), but also check every OTHER hazard lexicon for a smaller
+  // credit. A single-hazard corpus is unaffected because its off-hazard matches are rare. A
+  // mixed corpus now keeps candidates regardless of which one hazard the profile guessed,
+  // and the per-record `hazard` choice question (asked with fixed, hazard-neutral wording,
+  // never keyed to the profile) is what actually separates flood from fire from quake.
   const hazardRe = HAZARD_LEXICON[profile.hazard];
   if (profile.hazard !== "other" && hazardRe.test(text)) {
     score += 0.5;
     reasons.push(`mentions ${profile.hazard}`);
+  } else if (!profile.focused) {
+    // Skipped when the hazard was chosen deliberately (see focusProfile). The off-hazard credit
+    // exists to survive a wrong GUESS; once the target is known, a tornado post earning credit
+    // is just a paid model call spent on something the flood view will discard anyway.
+    for (const [hazard, re] of Object.entries(HAZARD_LEXICON) as Array<[typeof profile.hazard, RegExp]>) {
+      if (hazard === "other" || hazard === profile.hazard) continue;
+      if (re.test(text)) {
+        score += 0.3;
+        reasons.push(`mentions ${hazard} (not the corpus's dominant hazard)`);
+        break; // one off-hazard match is enough signal; do not stack them
+      }
+    }
   }
 
   if (EMERGENCY_TERMS.test(text)) {

@@ -8,7 +8,7 @@
  */
 
 import { parseCsv } from "../../../lib/csv";
-import { dedupe, detectEventProfile } from "../../../lib/prefilter";
+import { dedupe, detectEventProfile, focusProfile } from "../../../lib/prefilter";
 import { knownPlaceAliases } from "../../../lib/geoparse";
 import type { FloodRecord, FunnelCounts } from "../../../lib/types";
 
@@ -178,9 +178,15 @@ export async function POST(request: Request) {
     if (n && n > 1) r.duplicateCount = n;
   }
 
-  const profile = detectEventProfile(
-    deduped.map((r) => r.text).filter(Boolean),
-    { knownPlaces: knownPlaceAliases() },
+  const profileTexts = deduped.map((r) => r.text).filter(Boolean);
+  const profileOpts = { knownPlaces: knownPlaceAliases() };
+  // Detection first, then focus. A single-event corpus passes through untouched. A mixed one
+  // (the CE Strategies world feed) is focused on flooding deliberately, and the response says
+  // so via profile.mixed / detectedHazard so the UI can explain rather than hide the choice.
+  const profile = focusProfile(
+    detectEventProfile(profileTexts, profileOpts),
+    profileTexts,
+    profileOpts,
   );
 
   const funnel: FunnelCounts = {

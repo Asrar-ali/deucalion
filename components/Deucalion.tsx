@@ -232,9 +232,18 @@ export function Deucalion() {
       // "Flooding only" pins the hazard before classification, so the relevance question asks
       // about floods. On a mixed-disaster file the corpus detector picks storm or "other",
       // and every disaster would then count as relevant.
+      //
+      // Two ways to end up focused, and they compose. The explicit choice above always wins. If
+      // nobody chose, a file that detection flags as mixed has ALREADY been focused on flooding
+      // by focusProfile (server side for one request, in chunkedIngest for a large upload), so
+      // result.profile arrives with hazard "flood" and focused true. `focused` tells the prefilter
+      // to stop paying for other hazards' vocabulary, so the explicit choice sets it too.
       const eventProfile =
-        focus === "flood" ? { ...result.profile, hazard: "flood" as const, userEdited: true } : result.profile;
-      if (focus === "flood") setFilters((f) => ({ ...f, floodOnly: true }));
+        focus === "flood"
+          ? { ...result.profile, hazard: "flood" as const, userEdited: true, focused: true }
+          : result.profile;
+      // Mixed files default to the flood view, matching what the choice would have done.
+      if (focus === "flood" || result.profile.mixed) setFilters((f) => ({ ...f, floodOnly: true }));
       setIngestInfo(result);
       setRecords(result.records);
       setProfile(eventProfile);
@@ -247,12 +256,27 @@ export function Deucalion() {
 
       const byId = new Map(result.records.map((r) => [r.id, r]));
 
+      // Records accumulate in the Map immediately, but React state is refreshed on a timer.
+      // Refreshing on every streamed batch is quadratic in the record count: each of ~1,300
+      // batches copied all 53,000 records and re-ran the filter, the community rollup, the map
+      // point rebuild and the table sort, which froze the tab on the world feed (Alberta's 7,000
+      // rows hid it, being ~50x less work). A few refreshes a second still looks live, and the
+      // flush in `finally` guarantees the final state is complete even if the run errors.
+      let dirty = false;
+      const flushRecords = () => {
+        if (!dirty) return;
+        dirty = false;
+        setRecords([...byId.values()]);
+      };
+      const timer = setInterval(flushRecords, 500);
+
+      try {
       await runClassify(
         { records: result.records, profile: eventProfile },
         {
           onRecordBatch: (batch) => {
             for (const r of batch) byId.set(r.id, r);
-            setRecords([...byId.values()]);
+            dirty = true;
           },
           onProgress: (done, total, stage) => setProgress({ done, total, stage }),
           // Classify only ever sees the deduplicated set, so its `raw` is the post-dedupe
@@ -277,6 +301,7 @@ export function Deucalion() {
           onDegraded: (_reason, message) => notify(message),
           onError: notify,
           onDone: (finalFunnel, finalSpend, version) => {
+            flushRecords();
             setFunnel((prev) =>
               prev ? { ...finalFunnel, raw: prev.raw, deduped: prev.deduped } : finalFunnel,
             );
@@ -287,6 +312,12 @@ export function Deucalion() {
           },
         },
       );
+      } finally {
+        // Success, error and abort all land here. Stopping the timer without one last flush would
+        // drop the final records of an interrupted run, so partial results stay visible.
+        clearInterval(timer);
+        flushRecords();
+      }
       setBusy(false);
       setProgress(null);
     },
