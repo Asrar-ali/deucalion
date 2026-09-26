@@ -38,7 +38,7 @@ const BLANK_STYLE: StyleSpecification = {
   version: 8,
   sources: {},
   layers: [{ id: "bg", type: "background", paint: { "background-color": "#1b1f26" } }],
-  glyphs: "https://basemaps.cartocdn.com/gl/positron-gl-style/{fontstack}/{range}.pbf",
+  glyphs: "https://tiles.basemaps.cartocdn.com/fonts/{fontstack}/{range}.pbf",
 };
 
 /** Category colours as literal hex, because MapLibre paint expressions cannot read CSS vars. */
@@ -119,6 +119,38 @@ function reservesGeoJson(counts: Map<string, number> = new Map()): GeoJSON.Featu
   };
 }
 
+/** One point per reserve carrying its post count, for the label layer (collision-managed by
+ * MapLibre, unlike DOM markers which always overlap and draw over the sidebar). */
+function reservePointsGeoJson(counts: Map<string, number>): GeoJSON.FeatureCollection<GeoJSON.Point> {
+  return {
+    type: "FeatureCollection",
+    features: RESERVES.map((r) => {
+      const name = r.community ?? r.name;
+      const n = counts.get(name) ?? 0;
+      return {
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [r.lon, r.lat - 25 / 111.32] },
+        properties: { text: n > 0 ? `${name}, ${n} ${n === 1 ? "post" : "posts"}` : name, posts: n },
+      };
+    }),
+  };
+}
+
+/** Bounds of the points for the first fit: the central 90 percent per axis when there are more
+ * than 50, so a few stray geocodes (India, Australia) do not zoom the whole map out to the world.
+ * Trimmed points stay on the map and reachable by pan and zoom. */
+function fitBoundsOf(points: Point[]): [[number, number], [number, number]] {
+  const lons = points.map((p) => p.lon).sort((a, b) => a - b);
+  const lats = points.map((p) => p.lat).sort((a, b) => a - b);
+  const n = points.length;
+  const lo = n > 50 ? Math.floor(n * 0.05) : 0;
+  const hi = n > 50 ? Math.ceil(n * 0.95) - 1 : n - 1;
+  return [
+    [lons[lo], lats[lo]],
+    [lons[hi], lats[hi]],
+  ];
+}
+
 interface Point {
   id: string;
   lon: number;
@@ -193,21 +225,19 @@ export function FloodMap({
   // Memoised: a fresh array every render re-ran the data and camera effects on every render.
   const points = useMemo(() => toPoints(records), [records]);
   const latestPoints = useRef(points);
-  /** Posts per community, so rings rebuilt on style.load keep their visibility. */
-  const reserveCounts = useRef(new Map<string, number>());
   latestPoints.current = points;
   const latestRecords = useRef(records);
   latestRecords.current = records;
 
   // Whether the point set has ever been non-empty, so the initial-fit effect fires once per
   // empty-to-loaded transition rather than on every filter change.
-  const hadPoints = useRef(false);
   /** Point count at the last automatic fit, and whether the user has taken the camera since. */
   const fitCount = useRef(0);
   const userMoved = useRef(false);
 
-  // One DOM marker per reserve, created once and repositioned/relabelled as data changes.
-  const reserveMarkers = useRef<maplibregl.Marker[]>([]);
+  // Latest per-community post counts, so the reserve label layer can be rebuilt after a style swap.
+  const reserveCounts = useRef<Map<string, number>>(new Map());
+  const [legendOpen, setLegendOpen] = useState(false);
 
   // Keyboard path to every point on the map, for a keyboard- or screen-reader-only user.
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
@@ -247,40 +277,6 @@ export function FloodMap({
       if ((e as { originalEvent?: unknown }).originalEvent) userMoved.current = true;
     });
 
-    // Reserve labels are plain DOM markers, not a map layer, so they do not need to be rebuilt
-    // on "style.load" -- only the source/layer that draws the rings does.
-    reserveMarkers.current = RESERVES.map((r) => {
-      const el = document.createElement("div");
-      Object.assign(el.style, {
-        fontSize: "14px",
-        background: "var(--surface-raised)",
-        border: "1px solid var(--line)",
-        padding: "1px 5px",
-        borderRadius: "3px",
-        color: "var(--text)",
-        pointerEvents: "none",
-        whiteSpace: "nowrap",
-      });
-      el.textContent = r.community ?? r.name;
-      // Anchored at the south edge of the 25 km ring, not the centre: DOM markers always draw
-      // above the canvas, and a centred label sat on top of the Calgary cluster next door.
-      return new maplibregl.Marker({ element: el, anchor: "top" })
-        .setLngLat([r.lon, r.lat - 25 / 111.32])
-        .addTo(instance);
-    });
-
-    // Label only communities with posts until the user zooms in, so 19 labels do not bury
-    // the report clusters at province scale.
-    const syncReserveLabels = () => {
-      const zoomedIn = instance.getZoom() >= 8;
-      for (const m of reserveMarkers.current) {
-        const el = m.getElement();
-        el.style.display = zoomedIn || el.dataset.posts === "1" ? "" : "none";
-      }
-    };
-    instance.on("zoomend", syncReserveLabels);
-    instance.once("load", syncReserveLabels);
-
     appliedStyle.current = lowBandwidth ? BLANK_STYLE : dark ? CARTO_DARK : CARTO_LIGHT;
 
     // Every setStyle drops our sources and layers, and "load" fires only once, so rebuild on
@@ -289,6 +285,7 @@ export function FloodMap({
       const accentColor = cssVar("--accent", "#3f6fd6");
       const surfaceRaisedColor = cssVar("--surface-raised", "#ffffff");
       const ringColor = cssVar("--text", "#333");
+      const labelColor = cssVar("--text", "#222");
 
       // Added first so it paints beneath the report layers below.
       instance.addSource("reserves", { type: "geojson", data: reservesGeoJson(reserveCounts.current) });
@@ -300,9 +297,33 @@ export function FloodMap({
           "line-color": ringColor,
           "line-width": 1.2,
           "line-dasharray": [4, 3],
-          // At province scale, 19 unlabeled dashed circles read as noise: draw only the
-          // communities that have posts until the user zooms in, matching the labels.
+          // Unlabelled rings read as noise at province scale: only communities with posts until zoom 8.
           "line-opacity": ["interpolate", ["linear"], ["zoom"], 7, ["case", ["get", "hasPosts"], 1, 0], 8, 1],
+        },
+      });
+
+      // Reserve names are a symbol layer so MapLibre resolves collisions: busiest communities win,
+      // the rest drop out rather than stacking. Communities with no posts only label when zoomed in.
+      instance.addSource("reserve-points", { type: "geojson", data: reservePointsGeoJson(reserveCounts.current) });
+      instance.addLayer({
+        id: "reserve-labels",
+        type: "symbol",
+        source: "reserve-points",
+        filter: ["any", [">", ["get", "posts"], 0], [">=", ["zoom"], 8]],
+        layout: {
+          "text-field": ["get", "text"],
+          "text-font": ["Montserrat Medium", "Open Sans Bold", "Noto Sans Regular"],
+          "text-size": ["interpolate", ["linear"], ["zoom"], 4, 10, 9, 12],
+          "text-anchor": "top",
+          "text-max-width": 8,
+          "text-allow-overlap": false,
+          "text-optional": true,
+          "symbol-sort-key": ["-", 0, ["get", "posts"]],
+        },
+        paint: {
+          "text-color": labelColor,
+          "text-halo-color": surfaceRaisedColor,
+          "text-halo-width": 1.5,
         },
       });
 
@@ -431,8 +452,6 @@ export function FloodMap({
 
     map.current = instance;
     return () => {
-      reserveMarkers.current.forEach((m) => m.remove());
-      reserveMarkers.current = [];
       focusMarker.current?.remove();
       focusMarker.current = null;
       instance.remove();
@@ -463,53 +482,51 @@ export function FloodMap({
     source?.setData(toGeoJson(points));
   }, [points, ready]);
 
-  // Fit the camera to the data once, the moment a dataset goes from empty to loaded. Filtering
-  // afterwards must not keep yanking the viewport around, so this only fires on that transition.
-  useEffect(() => {
+  // Fit the camera to the data when a dataset first arrives, and again as it grows by half, until
+  // the user takes the camera. Reset when the dataset empties (a new file). Padding leaves room
+  // for the report detail panel on the right and the key/controls; maxZoom stops a tight cluster
+  // zooming to street level. A hidden (zero-size) container is skipped and retried on resize.
+  const fitToData = useRef<() => void>(() => {});
+  fitToData.current = () => {
     const instance = map.current;
-    if (!instance || !ready) return;
-    // Records stream in, so fitting only on the first point framed a single street. Refit as
-    // the set grows by half again, until the user takes the camera; reset per dataset.
+    if (!instance || !ready || !container.current) return;
     if (!points.length) {
       fitCount.current = 0;
       userMoved.current = false;
+      return;
     }
+    if (container.current.clientWidth < 50 || container.current.clientHeight < 50) return;
     const grew = fitCount.current === 0 || points.length >= fitCount.current * 1.5;
-    if (points.length && grew && !userMoved.current) {
-      fitCount.current = points.length;
-      const lons = points.map((p) => p.lon);
-      const lats = points.map((p) => p.lat);
-      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      instance.fitBounds(
-        [
-          [Math.min(...lons), Math.min(...lats)],
-          [Math.max(...lons), Math.max(...lats)],
-        ],
-        { padding: 48, maxZoom: 10, ...(reduce ? { duration: 0 } : {}) },
-      );
-    }
-    hadPoints.current = points.length > 0;
-  }, [points, ready]);
-
-  // Relabel the reserve markers whenever the record set changes -- the count is how many of
-  // the records currently passed to the map name a place within 25 km of that community.
-  useEffect(() => {
-    const counts = new Map(communityRollup(records).map((c) => [c.name, c.count]));
-    reserveCounts.current = counts;
-    (map.current?.getSource("reserves") as GeoJSONSource | undefined)?.setData(reservesGeoJson(counts));
-    reserveMarkers.current.forEach((marker, i) => {
-      const reserve = RESERVES[i];
-      if (!reserve) return;
-      const label = reserve.community ?? reserve.name;
-      const n = counts.get(label) ?? 0;
-      const el = marker.getElement();
-      el.textContent = n > 0 ? `${label}, ${n} ${n === 1 ? "post" : "posts"}` : label;
-      el.style.fontWeight = n > 0 ? "600" : "400";
-      el.dataset.posts = n > 0 ? "1" : "0";
-      const zoomedIn = (map.current?.getZoom() ?? 0) >= 8;
-      el.style.display = zoomedIn || n > 0 ? "" : "none";
+    if (!grew || userMoved.current) return;
+    fitCount.current = points.length;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const wide = container.current.clientWidth > 700;
+    instance.resize();
+    instance.fitBounds(fitBoundsOf(points), {
+      padding: { top: 56, bottom: 56, left: 56, right: wide ? 64 : 56 },
+      maxZoom: 11,
+      ...(reduce ? { duration: 0 } : {}),
     });
-  }, [records]);
+  };
+  useEffect(() => {
+    fitToData.current();
+  }, [points, ready]);
+  useEffect(() => {
+    const el = container.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => fitToData.current());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Relabel the reserve layer whenever the record set changes -- the count is how many of the
+  // records currently passed to the map name a place within 25 km of that community.
+  useEffect(() => {
+    reserveCounts.current = new Map(communityRollup(records).map((c) => [c.name, c.count]));
+    const source = map.current?.getSource("reserve-points") as GeoJSONSource | undefined;
+    source?.setData(reservePointsGeoJson(reserveCounts.current));
+    (map.current?.getSource("reserves") as GeoJSONSource | undefined)?.setData(reservesGeoJson(reserveCounts.current));
+  }, [records, ready]);
 
   // Follow the selection, and highlight it.
   useEffect(() => {
@@ -627,6 +644,45 @@ export function FloodMap({
           </div>
         )}
 
+        {/* The honest key, collapsed to a compact control so it never crowds the attribution or
+            the detail panel. Encodes what the ring width and dot size actually mean. */}
+        <div
+          className="max-w-[240px] rounded text-[11px] leading-snug"
+          style={{ background: "var(--surface-raised)", border: "1px solid var(--line-strong)", color: "var(--text-muted)" }}
+        >
+          <button
+            type="button"
+            aria-expanded={legendOpen}
+            aria-controls="map-key"
+            onClick={() => setLegendOpen((v) => !v)}
+            className="flex w-full items-center gap-1 px-2 py-1 font-semibold"
+            style={{ color: "var(--text)" }}
+          >
+            <span aria-hidden="true">{legendOpen ? "\u25BE" : "\u25B8"}</span> Map key
+          </button>
+          {legendOpen && (
+            <div id="map-key" className="space-y-0.5 px-2 pb-1.5">
+              <div>
+                <strong style={{ color: "var(--text)" }}>Thick ring</strong>: exact coordinates
+              </div>
+              <div>
+                <strong style={{ color: "var(--text)" }}>Thin ring</strong>: place name inferred
+              </div>
+              <div>
+                <strong style={{ color: "var(--text)" }}>Dot size</strong>: confidence
+              </div>
+              <div className="flex items-start gap-1.5">
+                <span
+                  aria-hidden="true"
+                  className="mt-[7px] shrink-0"
+                  style={{ display: "inline-block", width: "14px", borderTop: "1.5px dashed var(--text-muted)" }}
+                />
+                <span>First Nation, 25 km matching radius (proximity, not a boundary)</span>
+              </div>
+            </div>
+          )}
+        </div>
+
         {failed && (
           <div
             className="rounded px-2 py-1 text-[11px]"
@@ -648,28 +704,6 @@ export function FloodMap({
         </div>
       )}
 
-      {/* The honest key. Encodes what the ring width and dot size actually mean. */}
-      <div
-        className="absolute bottom-2 right-2 rounded px-2 py-1.5 text-[10px] leading-relaxed"
-        style={{ background: "var(--surface-raised)", border: "1px solid var(--line)", color: "var(--text-muted)" }}
-      >
-        <div>
-          <strong style={{ color: "var(--text)" }}>Thick ring</strong> exact coordinates
-        </div>
-        <div>
-          <strong style={{ color: "var(--text)" }}>Thin ring</strong> place name inferred
-        </div>
-        <div>
-          <strong style={{ color: "var(--text)" }}>Dot size</strong> confidence
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span
-            aria-hidden="true"
-            style={{ display: "inline-block", width: "14px", borderTop: "1.5px dashed var(--text-muted)" }}
-          />
-          First Nation, 25 km matching radius (proximity, not a boundary)
-        </div>
-      </div>
     </div>
   );
 }

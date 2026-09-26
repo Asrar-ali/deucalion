@@ -637,6 +637,26 @@ export function Deucalion() {
   // Typing in search re-filtered every record per keystroke; on the 61k-row world feed that
   // stutters. The deferred query lets React keep the input responsive and filter behind it.
   const deferredQuery = useDeferredValue(filters.query);
+  // The banner counts exactly what the flood-only view shows, so the headline, the Summary panel and
+  // the map filter agree. funnel.relevant counts every disaster post the model found, which on a
+  // mixed file is more than the flood posts.
+  const floodTotals = useMemo(() => {
+    let found = 0;
+    let mapped = 0;
+    if (!readyBanner) return { found, mapped };
+    for (const r of records) {
+      if (!r.labels.relevant?.value) continue;
+      if (r.labels.hazard && r.labels.hazard.value !== "flood") continue;
+      found++;
+      if (r.places.length) mapped++;
+    }
+    return { found, mapped };
+  }, [records, readyBanner]);
+  // Flood runs report the flood-view figures; other hazards fall back to the funnel's own counts.
+  const floodTarget = profile?.hazard === "flood" || !profile;
+  const bannerFound = readyBanner ? (floodTarget ? floodTotals.found : readyBanner.relevant) : 0;
+  const bannerMapped = readyBanner ? (floodTarget ? floodTotals.mapped : readyBanner.mappable) : 0;
+
   const visible = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
     return records.filter((r) => {
@@ -810,7 +830,7 @@ export function Deucalion() {
           {/* min-width forces the buttons onto their own row on phones instead of crushing
               this sentence into a one-word-wide column beside them. */}
           <span className="min-w-[16rem] flex-1">
-            {readyBanner.relevant === 0 ? (
+            {bannerFound === 0 ? (
               // "Done. 0 posts found" gave a dead end on a wrong or unreadable file; say what to try.
               <>
                 Done, but none of these posts were classified as relevant. Check that the file has a
@@ -818,9 +838,9 @@ export function Deucalion() {
               </>
             ) : (
               <>
-                {demoMode ? "Demo replay finished, nothing was classified live." : "Done."} {count(readyBanner.relevant)}{" "}
+                {demoMode ? "Demo replay finished, nothing was classified live." : "Done."} {count(bannerFound)}{" "}
                 {/* The unseen judging file may not be a flood: name the detected hazard, not a constant. */}
-                {profile?.hazard === "flood" ? "flood" : profile?.hazard === "other" || !profile ? "relevant" : profile.hazard} posts found, {count(readyBanner.mappable)} placed on the map.
+                {profile?.hazard === "flood" ? "flood" : profile?.hazard === "other" || !profile ? "relevant" : profile.hazard} posts found, {count(bannerMapped)} placed on the map.
               </>
             )}
           </span>
