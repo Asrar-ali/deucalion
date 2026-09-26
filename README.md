@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Living Flood Map
 
-## Getting Started
+**Team Prometheus** · Thunder Bay AI Hackathon, 26 September 2026
+**Challenge sponsor:** CE Strategies
 
-First, run the development server:
+Firsthand public posts about a flood, turned into an auditable, mappable, accessible situational
+picture — and handed to the GIS system a community already uses.
+
+A submerged road or an elder's home taking on water is usually documented first by someone
+standing in front of it, hours before any sensor registers it. That record never reaches the
+people drawing the maps. This closes that gap.
+
+---
+
+## Quick start
 
 ```bash
+cp .env.example .env.local     # then paste your keys into .env.local
+node scripts/smoke.mjs         # prove the model contract before anything else
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`scripts/smoke.mjs` hits the real endpoint with three rows from the provided dataset and prints
+answers, confidence, the exact model version, latency and real cost per call. If that fails,
+nothing else matters yet.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Docs
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| File | What it is |
+|---|---|
+| `docs/ARCHITECTURE.md` | The approved design spec. Read this first. |
+| `docs/CONTRACT.md` | Wire format between pipeline and UI. Frozen. |
+| `docs/WORKPLAN.md` | Who builds what, timeline, hard gates, demo script |
+| `docs/ACCESSIBILITY.md` | WCAG baseline, crisis accessibility, known gaps |
 
-## Learn More
+## What it does
 
-To learn more about Next.js, take a look at the following resources:
+Four front doors, one pipeline:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **CSV upload** — the provided dataset, or any file judges upload
+- **Photo / drone image** — Gemini vision, EXIF coordinates, automatic alt text
+- **Paste a link or text** — X, Bluesky, fediverse, any web page; screenshot + OCR when a
+  platform blocks us
+- **Voice** — speak a report instead of typing it
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Then: classify with typed, calibrated decisions · extract place names against a bundled
+gazetteer · plot on an interactive map with a First Nations reserve overlay · filter, cluster
+and summarise · export GeoJSON.
 
-## Deploy on Vercel
+## Design commitments
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Every label is a proposal with a confidence.** Nothing is presented as verified.
+- **No silent drops.** The funnel shows raw → deduped → prefiltered → relevant → mappable, and
+  the count of records that mention no place at all.
+- **Ephemeral by default.** No server-side persistence, PII redacted before any third-party
+  call, one-click wipe. The communities this serves own their data.
+- **Extractive summaries always work.** The model-written narrative is an optional layer, and
+  every sentence in it cites the records it came from.
+- **The classifier is swappable.** It speaks the `/v1/systemone` wire protocol, so hosted Jev
+  and a self-hosted open-weights model are a base-URL change apart.
+- **Accessibility is the feature, not the polish.** A flood is exactly when someone is on a
+  phone, outdoors, on satellite internet, possibly unable to read the screen.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Honest limits
+
+- No timestamps in the provided dataset, so no temporal spread. Supported if an uploaded file
+  has a date column; not faked when it does not.
+- Location coverage is partial by nature. The unmappable count is displayed, not hidden.
+- Reddit and Meta APIs need credentials we do not have. Named, not worked around.
+- All `t.co` links in the provided dataset are dead (2013), so link resolution is demonstrated
+  with a live post.
+- Self-assessed accessibility. No formal audit, no screen-reader user in the loop.
+
+## Stack
+
+Next.js 16 · React 19 · Tailwind · MapLibre GL · Jev (`jev-1.13`) via OpenRouter for typed
+classification · Gemini for vision, OCR and narrative summaries · deployed on Vercel.
