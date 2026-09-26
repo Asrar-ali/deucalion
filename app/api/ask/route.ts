@@ -191,18 +191,24 @@ export async function POST(request: Request) {
     "\n\nPosts:\n" +
     (contextLines || "(no posts provided)");
 
-  const parsed =
-    (await generateJsonFast<AskResponseShape>(prompt, RESPONSE_SCHEMA)) ??
-    (await generateJson<AskResponseShape>(prompt, RESPONSE_SCHEMA, { timeoutMs: 30_000 }));
+  // Fast model first. It sometimes answers without citing any post; enforceCitations then drops
+  // everything and the user sees "the posts don't answer that" for a question the posts do
+  // answer. When nothing cited survives, ask the stronger gateway model once before giving up.
+  const cite = (p: AskResponseShape | null) => (p ? enforceCitations(p.answer, allowedIds) : null);
+  let result = cite(await generateJsonFast<AskResponseShape>(prompt, RESPONSE_SCHEMA));
+  if (!result || result.kept.length === 0) {
+    const fallback = cite(await generateJson<AskResponseShape>(prompt, RESPONSE_SCHEMA, { timeoutMs: 30_000 }));
+    if (fallback && (fallback.kept.length > 0 || !result)) result = fallback;
+  }
 
-  if (!parsed) {
+  if (!result) {
     return Response.json(
       { error: "The answer service is unavailable right now. The map, filters and summary still work." },
       { status: 503 },
     );
   }
 
-  const { kept, dropped } = enforceCitations(parsed.answer, allowedIds);
+  const { kept, dropped } = result;
   if (dropped.length) {
     console.warn(
       `ask: dropped ${dropped.length} sentence(s): ${dropped.map((d) => d.reason).join("; ")}`,

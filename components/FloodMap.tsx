@@ -523,7 +523,10 @@ export function FloodMap({
   // records currently passed to the map name a place within 25 km of that community.
   useEffect(() => {
     reserveCounts.current = new Map(communityRollup(records).map((c) => [c.name, c.count]));
-    const source = map.current?.getSource("reserve-points") as GeoJSONSource | undefined;
+    // Counts are kept in the ref either way; style.load rebuilds the sources from it. Touching
+    // sources mid-style-load is what threw "Style is not done loading".
+    if (!map.current || !ready) return;
+    const source = map.current.getSource("reserve-points") as GeoJSONSource | undefined;
     source?.setData(reservePointsGeoJson(reserveCounts.current));
     (map.current?.getSource("reserves") as GeoJSONSource | undefined)?.setData(reservesGeoJson(reserveCounts.current));
   }, [records, ready]);

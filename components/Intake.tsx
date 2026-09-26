@@ -14,7 +14,7 @@ import {
   Image as ImageIcon,
   Link as LinkIcon,
   Microphone,
-  MicrophoneSlash,
+  StopCircle,
   Spinner,
 } from "@phosphor-icons/react/dist/ssr";
 
@@ -335,13 +335,15 @@ export function Intake({
               }
               className="rounded px-2 transition-colors hover:brightness-95"
               style={{
-                border: "1px solid var(--line-strong)",
+                border: listening ? "1px solid var(--urgent)" : "1px solid var(--line-strong)",
                 background: listening ? "var(--urgent-weak)" : "var(--surface-raised)",
                 color: listening ? "var(--urgent)" : "var(--text-muted)",
                 borderRadius: "var(--radius)",
               }}
             >
-              {listening ? <MicrophoneSlash size={15} aria-hidden /> : <Microphone size={15} aria-hidden />}
+              {/* While recording: a stop button (square in a circle), the universal "tap to stop"
+                  shape; back to the mic once stopped. */}
+              {listening ? <StopCircle size={18} weight="fill" aria-hidden /> : <Microphone size={15} aria-hidden />}
             </button>
           )}
           <button
