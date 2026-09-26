@@ -59,14 +59,14 @@ Toggle dark mode, or the legible font, or large touch targets, whichever is quic
 Cut to the world feed already loaded, or narrate the load if time allows.
 
 > "For the bonus round they gave us a worldwide file mixing floods, fires, earthquakes, storms,
-> all together. Deucalion detects that automatically, focuses on flood posts specifically, and
-> tells you it's doing that instead of just silently guessing. It still holds up at sixty
-> thousand posts, and the map becomes a full world view."
+> all together. Deucalion catches that automatically, focuses on flood posts, and says so on
+> screen instead of just guessing silently. It still holds up at sixty thousand posts."
 
 ## 1:52–2:00 — Close
 
 > "Nothing gets stored on our server, every label here is a proposal a person can double-check,
-> not a fact we're asserting. This is Deucalion, from team Prometheus."
+> not a fact we're asserting. We're team Prometheus, and in the old myth, Prometheus's son is
+> Deucalion, the guy who survives the flood. Felt right. This is Deucalion."
 
 ---
 
