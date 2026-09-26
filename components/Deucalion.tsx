@@ -838,9 +838,20 @@ export function Deucalion() {
               </>
             ) : (
               <>
-                {demoMode ? "Demo replay finished, nothing was classified live." : "Done."} {count(bannerFound)}{" "}
-                {/* The unseen judging file may not be a flood: name the detected hazard, not a constant. */}
-                {profile?.hazard === "flood" ? "flood" : profile?.hazard === "other" || !profile ? "relevant" : profile.hazard} posts found, {count(bannerMapped)} placed on the map.
+                {demoMode ? (
+                  // The funnel shows the full recorded run (3,748 relevant) while the map and list
+                  // hold a small sample; without saying so, "33 found" next to "3,748" read as a bug.
+                  <>
+                    Demo replay, nothing was classified live. The counts below are from the full
+                    run; the map and list show a sample of {count(bannerFound)} of those posts.
+                  </>
+                ) : (
+                  <>
+                    Done. {count(bannerFound)}{" "}
+                    {/* The unseen judging file may not be a flood: name the detected hazard, not a constant. */}
+                    {profile?.hazard === "flood" ? "flood" : profile?.hazard === "other" || !profile ? "relevant" : profile.hazard} posts found, {count(bannerMapped)} placed on the map.
+                  </>
+                )}
               </>
             )}
           </span>
