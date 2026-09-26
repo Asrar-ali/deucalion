@@ -1,73 +1,84 @@
 # Demo video script: 2 minutes, hard stop
 
-Judges stop watching at 2:00. Rehearse this out loud with a timer at least twice before
-recording. Record the real site, live, with your voice. No cuts that hide a wait longer than a
-second or two; if something takes a few seconds, say what's happening while it loads instead of
-editing it out.
+Judges stop watching at 2:00. Practice this a couple times out loud with a timer, but don't
+memorize it word for word, it'll sound like you're reading. Know what you want to say at each
+beat and just talk. Record the real site, live, with your voice.
 
-Numbers below are the real, measured ones. Say "about" before each one rather than promising
-exact digits.
+Numbers below are the real, measured ones, said loosely ("about," "roughly") since you're
+talking, not reading a spec sheet.
 
 ---
 
 ## 0:00–0:12 — Hook
 
-Say this over the empty Load data page:
+Over the empty Load data page:
 
-> "When a flood hits a First Nations community, the first record of it isn't a sensor, it's a
-> person posting from their porch. Deucalion finds those posts, checks which ones are really
-> about the flood, and puts them on a map. This is CE Strategies' Living Flood Map."
+> "So when a flood hits a First Nations community, the first sign of it usually isn't a
+> sensor, it's someone posting from their porch before anyone official even knows. Deucalion
+> finds those posts, figures out which ones are actually about the flood, and puts them on a
+> map. We built this for CE Strategies' Living Flood Map challenge."
 
 ## 0:12–0:35 — Load and classify, live
 
-Click the Alberta 2013 sample button. Let it run on screen; narrate over it, don't cut away.
+Click the Alberta 2013 sample. Talk over it while it runs, don't cut away.
 
-> "One upload. About eight thousand posts, checked for duplicates, filtered locally for free,
-> then sent to a fast classification model. The funnel shows every stage, nothing dropped
-> silently. This whole pass costs a few cents and finishes in under a minute."
+> "I'll just load a real dataset, about eight thousand posts. Watch the numbers move, it's
+> deduping, filtering locally for free, then sending the real candidates to a classifier. We
+> show every step instead of hiding it behind a spinner, because if something gets dropped, we
+> want that visible, not silent. This whole run costs a few cents and takes under a minute."
 
 ## 0:35–1:00 — Map and detail
 
-Switch to Map. Zoom to a cluster, click a point, open the detail panel.
+Switch to Map. Zoom into a cluster, click a point, open the detail panel.
 
-> "Every post lands on the map with a confidence, not a claim. This shows exactly why it was
-> placed here, how sure the system is about the category, and whether the location is exact or
-> inferred. Nothing here is called verified, because these are public posts, not official
-> records."
+> "Here's the map. Click into any post and you get why it landed here, how confident we are on
+> the category, and whether the location's exact or just inferred from the text. We were pretty
+> careful about this, we never say 'verified' anywhere in the app. These are public posts, not
+> official records, and we didn't want the tool to sound more certain than it actually is."
 
-## 1:00–1:20 — Reports, filters, Ask
+## 1:00–1:15 — Reports and Ask
 
-Switch to Reports, tick "Only requests for help" or a category filter. Switch to Ask, type a
-question, show the answer with its citation.
+Switch to Reports, tick a filter. Switch to Ask, type a question, show the cited answer.
 
-> "Filter to what matters right now: who needs help, what roads are blocked. Or just ask. This
-> answer is grounded in the actual posts loaded, and every sentence links back to the post it
-> came from."
+> "You can filter straight to what matters, who's asking for help, what roads are blocked. Or
+> just ask a question in plain English, and it answers from the actual loaded posts, every
+> sentence links back to where it came from."
 
-## 1:20–1:50 — The bonus round
+## 1:15–1:35 — Accessibility, the part we actually care about
 
-Switch to Load data, click the world feed button (or cut to a moment where it's already loaded,
-narrating what happened).
+Toggle dark mode, or the legible font, or large touch targets, whichever is quickest to show.
 
-> "The bonus round gave us a worldwide file mixing floods, fires, earthquakes and storms. We
-> detect that automatically, focus on flood posts, and say so on screen rather than hiding it.
-> The map becomes a world view, and it still holds up at sixty thousand posts."
+> "One thing we spent real time on: this has to work for whoever's actually using it in an
+> emergency, not just us. Dark mode, a legible font option, bigger touch targets for someone
+> wearing gloves outside, a low-data mode for a weak connection. It's fully keyboard operable
+> and works with a screen reader. That wasn't an afterthought, it was a requirement from day
+> one."
 
-Show the world map and the hazard breakdown panel (flood vs. fire vs. quake vs. storm bars).
+## 1:35–1:52 — The bonus round
 
-## 1:50–2:00 — Close
+Cut to the world feed already loaded, or narrate the load if time allows.
 
-> "Nothing is stored on our server. Every label is a proposal a person can check, not a fact
-> we're asserting. This is Deucalion, built by team Prometheus."
+> "For the bonus round they gave us a worldwide file mixing floods, fires, earthquakes, storms,
+> all together. Deucalion detects that automatically, focuses on flood posts specifically, and
+> tells you it's doing that instead of just silently guessing. It still holds up at sixty
+> thousand posts, and the map becomes a full world view."
+
+## 1:52–2:00 — Close
+
+> "Nothing gets stored on our server, every label here is a proposal a person can double-check,
+> not a fact we're asserting. This is Deucalion, from team Prometheus."
 
 ---
 
 ## Recording notes
 
 - Full screen the browser, hide bookmarks bar and other tabs.
-- Use the Alberta sample for the first half; it's fast and reliable. Only load the world feed
-  once you've rehearsed it, since it takes real time and costs real money per run.
-- If Ask or the narrative summary is slow that day, skip narrating the wait; cut to the answer
-  already on screen and say "and here's the answer" rather than watching a spinner on camera.
+- Use the Alberta sample for most of it, it's fast and reliable. Only load the world feed live
+  if you've rehearsed the timing, it takes real time and costs real money per run; cutting to it
+  already loaded is fine.
+- If Ask or the narrative summary is slow that day, don't sit there narrating a spinner. Cut to
+  the answer already on screen and just say "and here's what it comes back with."
+- Say numbers like you're talking, not reading: "about eight thousand," not "eight thousand and
+  twenty-four."
 - Upload to YouTube (unlisted) or Google Drive with "Anyone with the link," then open the link
   in a private/incognito window before submitting to confirm it actually plays with no login.
