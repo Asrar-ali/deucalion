@@ -13,6 +13,10 @@ import type { Brief, Cluster, FloodRecord } from "../../../lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// The narrative tries a fast path first and falls back to a slower proxy call (up to 40s).
+// Without this, the platform's default function timeout killed the request before either
+// path could return, and the client saw a silent failure instead of a real answer.
+export const maxDuration = 60;
 
 // The provided dataset tops out at 8,024 raw rows (docs/ARCHITECTURE.md 3). A judge's
 // unseen file is unlikely to dwarf that by an order of magnitude for a single summarize
