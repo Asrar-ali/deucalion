@@ -49,12 +49,17 @@ export function Intake({
   onError,
   busy,
   lowBandwidth,
+  onDemoLoad,
 }: {
   onIngest: (result: IngestResult) => void;
   onError: (message: string) => void;
   busy: boolean;
   lowBandwidth: boolean;
+  /** Set in demo mode: Load replays fixtures and uploads make no network call. */
+  onDemoLoad?: () => void;
 }) {
+  const DEMO_UPLOAD_MESSAGE =
+    "Demo mode is on, so nothing is sent to the classifier. Open the page without ?demo=1 to classify your own data.";
   const [pasted, setPasted] = useState("");
   const [working, setWorking] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
@@ -79,6 +84,10 @@ export function Intake({
   };
 
   const loadSample = async () => {
+    if (onDemoLoad) {
+      onDemoLoad();
+      return;
+    }
     setWorking("sample");
     try {
       const res = await fetch("/sample/alberta-2013.csv");
@@ -94,6 +103,10 @@ export function Intake({
   };
 
   const onCsv = (file: File) => {
+    if (onDemoLoad) {
+      onError(DEMO_UPLOAD_MESSAGE);
+      return;
+    }
     if (file.size > CHUNK_THRESHOLD_BYTES) {
       setWorking("csv");
       void ingestLargeCsv(file, undefined, () => {})
@@ -108,6 +121,10 @@ export function Intake({
   };
 
   const onImages = (files: FileList) => {
+    if (onDemoLoad) {
+      onError(DEMO_UPLOAD_MESSAGE);
+      return;
+    }
     const form = new FormData();
     for (const file of Array.from(files)) form.append("images", file);
     void post("image", form);
@@ -119,6 +136,10 @@ export function Intake({
    * failure. Multiple lines are treated as multiple records.
    */
   const submitPasted = async () => {
+    if (onDemoLoad) {
+      onError(DEMO_UPLOAD_MESSAGE);
+      return;
+    }
     const value = pasted.trim();
     if (!value) return;
     const looksLikeUrl = /^https?:\/\/\S+$/i.test(value);

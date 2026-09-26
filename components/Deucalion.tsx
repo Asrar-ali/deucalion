@@ -165,9 +165,7 @@ export function Deucalion() {
   // Guarded by a ref rather than just the effect dependency array, because React can invoke
   // effects twice in development and a paid classification run should never double, so the
   // same discipline is kept here even though this path is free.
-  useEffect(() => {
-    if (!demoMode || demoStarted.current) return;
-    demoStarted.current = true;
+  const startDemoReplay = useCallback(() => {
     setRecords([]);
     setProfile(demoEventProfile());
     setFunnel(null);
@@ -189,7 +187,13 @@ export function Deucalion() {
         notify("Demo data loaded and replayed. Nothing here was classified live.");
       },
     });
-  }, [demoMode, notify]);
+  }, [notify]);
+
+  useEffect(() => {
+    if (!demoMode || demoStarted.current) return;
+    demoStarted.current = true;
+    startDemoReplay();
+  }, [demoMode, startDemoReplay]);
 
   /**
    * The destructive control the privacy claim demands: "nothing persists server-side and you
@@ -485,7 +489,15 @@ export function Deucalion() {
               posts about other hazards.
             </p>
           </div>
-          <Intake onIngest={onIngest} onError={notify} busy={busy} lowBandwidth={lowBandwidth} />
+          <Intake
+            onIngest={onIngest}
+            onError={notify}
+            busy={busy}
+            lowBandwidth={lowBandwidth}
+            // In demo mode nothing may touch the network: on stage the fallback exists because it
+            // might be down. Load replays the fixtures; uploads explain why they are not classified.
+            onDemoLoad={demoMode ? startDemoReplay : undefined}
+          />
 
           {ingestInfo?.detectedColumns?.length ? (
             <div className="border-t px-3 py-2 text-[11px]" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
