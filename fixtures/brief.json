@@ -1,0 +1,30 @@
+{
+  "extractive": "3,218 of 8,024 posts were classified as related to flooding in southern Alberta. The largest themes are donations and volunteering (337 posts), road and bridge closures (412), and evacuation or displacement (147). 906 posts name a place specific enough to map; 2,312 relevant posts mention no place at all and are listed but not plotted. 30 posts reference Siksika Nation.",
+  "narrative": [
+    {
+      "sentence": "10 relevant posts report solidarity and commentary, most often naming Canmore, AB.",
+      "citedRecordIds": [
+        "r_003",
+        "r_016",
+        "r_017"
+      ]
+    },
+    {
+      "sentence": "8 relevant posts report evacuation and shelter, most often naming Calgary, AB.",
+      "citedRecordIds": [
+        "r_005",
+        "r_009",
+        "r_010"
+      ]
+    },
+    {
+      "sentence": "8 relevant posts report donations and volunteers, most often naming Calgary, AB.",
+      "citedRecordIds": [
+        "r_014",
+        "r_015",
+        "r_018"
+      ]
+    }
+  ],
+  "plainLanguage": "About 3,200 of 8,000 posts are about the flood. Most talk about donations, closed roads, and people leaving their homes. About 900 posts say exactly where. 30 posts are about Siksika Nation."
+}

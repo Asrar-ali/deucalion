@@ -1,0 +1,18 @@
+{
+  "hazard": "flood",
+  "places": [
+    "Calgary",
+    "High River",
+    "Canmore",
+    "Medicine Hat"
+  ],
+  "terms": [
+    "flood",
+    "yycflood",
+    "abflood",
+    "water",
+    "evacuation",
+    "sandbag"
+  ],
+  "userEdited": false
+}

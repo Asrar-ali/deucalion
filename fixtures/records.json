@@ -1,0 +1,2415 @@
+[
+  {
+    "id": "r_001",
+    "source": "csv",
+    "text": "Happy Canada Day!!! #canadaday #july1st #lethbridge #hendersonpark #fun under the #sun #tan #mapleleaf http://t.co/Oa1XFXHj0a",
+    "labels": {
+      "relevant": {
+        "value": false,
+        "confidence": 0.34
+      },
+      "hazard": {
+        "value": "other",
+        "confidence": 0.55
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Lethbridge, AB",
+        "lat": 49.6956,
+        "lon": -112.8451,
+        "confidence": 0.81,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_002",
+    "source": "csv",
+    "text": "RT @ShitNenshiHasto: I can't believe I have to say this, but no, we won't be turning the Peace Bridge into a slip and slide.  #yycflood",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "access_blocked",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 2,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_003",
+    "source": "csv",
+    "text": "Sending love to all those affected by the flooding in Calgary, Canmore, High River, Okotoks, Lethbridge and every... http://t.co/b52cjtwdhc",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Calgary, AB",
+        "lat": 51.0447,
+        "lon": -114.0719,
+        "confidence": 0.94,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_004",
+    "source": "csv",
+    "text": "More live coverage from downtown #Calgary #ABFlood now on The Weather Network on TV road closures - river advisories - local weather!",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "access_blocked",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 2,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Calgary, AB",
+        "lat": 51.0447,
+        "lon": -114.0719,
+        "confidence": 0.94,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_005",
+    "source": "csv",
+    "text": "@Cree8Dawn @Harv_Durocher Gravel roads in some areas r washed away. Bow River is rising. Most families evacuated themselves. Mainland is ok.",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "evacuation",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 2,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_006",
+    "source": "csv",
+    "text": "Enbridge employees - offices will remain closed week of June 24; no impact to operations http://t.co/fYiwWGuWau #abfloods #yycflood",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "access_blocked",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 2,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_007",
+    "source": "csv",
+    "text": "Alberta College of Art + Design to Closed Until Wednesday, June 26th - campus locked, all classes/events cancelled. #yycflood",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "access_blocked",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 2,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_008",
+    "source": "csv",
+    "text": "Finally home after being a sober driver for the homie. It really sucked had to take every back road, signals stopped working. #rezlife",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "access_blocked",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 2,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_009",
+    "source": "csv",
+    "text": "Officials in #Calgary say evacuations will not end until water recedes; up to 30,000 still without power #abflood @weathernetwork",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "evacuation",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 2,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Calgary, AB",
+        "lat": 51.0447,
+        "lon": -114.0719,
+        "confidence": 0.94,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_010",
+    "source": "csv",
+    "text": "RT @AP: UPDATE: Three dead from flooding in Alberta as 75,000 people are evacuated: http://t.co/QjyqKNLBV4 -MM",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "evacuation",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 2,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_011",
+    "source": "csv",
+    "text": "RT @dinnerwithjulie: Ran into chef Kevin Turner from @bravabistro - whose evacuated house was broken into & ransacked. #yycflood http://t.c…",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "evacuation",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 2,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_012",
+    "source": "csv",
+    "text": "Truth: @CstShaw: For those inquiring about Deer Run, we have no evacuation order for your community at this time. #yycflood #yyc",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "evacuation",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 2,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_013",
+    "source": "csv",
+    "text": "Inn from the Cold has been forced to evacuate #yycflood",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "evacuation",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 2,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_014",
+    "source": "csv",
+    "text": "RT @windspeakernews: MT @CanadaBridges: Clothing is no longer needed in #Siksika... they are overwhelmed with clothing donations! #abflood …",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "aid",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 1,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Siksika Nation 146",
+        "lat": 50.7667,
+        "lon": -112.8833,
+        "confidence": 0.81,
+        "method": "gazetteer",
+        "community": {
+          "name": "Siksika Nation",
+          "id": "430"
+        }
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_015",
+    "source": "csv",
+    "text": "RT @windspeakernews: Calgary MLA Jeff Wilson accepting donations for Siksika! Office open 1-3 pm TODAY to donate. Details here! #abflood ht…",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "aid",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 1,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Calgary, AB",
+        "lat": 51.0447,
+        "lon": -114.0719,
+        "confidence": 0.94,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_016",
+    "source": "csv",
+    "text": "Siksika: People are in place to shut off power and water if need be.  Community is well prepared. #ableg #abflood",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": true,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Siksika Nation 146",
+        "lat": 50.7667,
+        "lon": -112.8833,
+        "confidence": 0.81,
+        "method": "gazetteer",
+        "community": {
+          "name": "Siksika Nation",
+          "id": "430"
+        }
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_017",
+    "source": "csv",
+    "text": "RT @weaselchild25: The people of Siksika are getting ready to help people who are victims of this flood. #abflood #flood #siksika http://t.…",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": true,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Siksika Nation 146",
+        "lat": 50.7667,
+        "lon": -112.8833,
+        "confidence": 0.81,
+        "method": "gazetteer",
+        "community": {
+          "name": "Siksika Nation",
+          "id": "430"
+        }
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_018",
+    "source": "csv",
+    "text": "Christy Clark donated $250 to Calgary flood to say on Global news that is joke!",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "aid",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 1,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Calgary, AB",
+        "lat": 51.0447,
+        "lon": -114.0719,
+        "confidence": 0.94,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_019",
+    "source": "csv",
+    "text": "RT @vitaminwater_ab: tomorrow we will be joining @yycfoodtrucks at the @cgyfarmersmarkt to raise money for @redcrossab #yychelps #yycflood …",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "aid",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 1,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_020",
+    "source": "csv",
+    "text": "RT @cenovus: Donate to @redcrosscanada to help w/ #abflood relief efforts. #Cenovus staff, we'll match employee donations http://t.co/d1Jz5…",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "aid",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 1,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": true,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_021",
+    "source": "csv",
+    "text": "RT @xlbuzz: Why #ABFlood Fundraising Should Be Donated To The Government, Not The Red Cross http://t.co/9EtYh72LGw",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "aid",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 1,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_022",
+    "source": "csv",
+    "text": "RT @unconstCFO: Cleanup time! Here's how to help in Calgary. http://t.co/XEEmKKQJPX #yychelps #ABflood",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "aid",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 1,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": true,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Calgary, AB",
+        "lat": 51.0447,
+        "lon": -114.0719,
+        "confidence": 0.94,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_023",
+    "source": "csv",
+    "text": "RT @CalgaryPolice: Find Family Members affected by Flooding in Alberta here: http://t.co/pxeSDy4HM1 Canadian Red Cross #yycflood",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "aid",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 1,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Calgary, AB",
+        "lat": 51.0447,
+        "lon": -114.0719,
+        "confidence": 0.94,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_024",
+    "source": "csv",
+    "text": "#Alberta | #Canmore – Water levels in Bow River remain steady http://t.co/SZMhdNtyil #flooding",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Canmore, AB",
+        "lat": 51.0884,
+        "lon": -115.3479,
+        "confidence": 0.81,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_025",
+    "source": "csv",
+    "text": "RT @NealaBarton: This is High River, AB from the air. Thoughts are with all who calls this town home. Just astounding. #abflood http://t.co…",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "High River, AB",
+        "lat": 50.5808,
+        "lon": -113.8744,
+        "confidence": 0.81,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_026",
+    "source": "csv",
+    "text": "Seeing the views from our ex-community of Crescent Heights and our fave place Canmore is devastating, sending love #yycflood #abflood",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Canmore, AB",
+        "lat": 51.0884,
+        "lon": -115.3479,
+        "confidence": 0.81,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_027",
+    "source": "csv",
+    "text": "Via @KelseyTWN latest #abflood: **Trans #Canada Hwy reopen to public traffic** as of 25min ago. #Banff #Canmore #abflood cc @weathernetwork",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Canmore, AB",
+        "lat": 51.0884,
+        "lon": -115.3479,
+        "confidence": 0.81,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_028",
+    "source": "csv",
+    "text": "RT @weathernetwork: A mandatory evacuation order has been issued in Medicine Hat. The order covers an area with 10,000 residents. #YYCFlood…",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "evacuation",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 2,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Medicine Hat, AB",
+        "lat": 50.0405,
+        "lon": -110.6764,
+        "confidence": 0.81,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_029",
+    "source": "csv",
+    "text": "@ZevKlymochko I skated (and loved) millennium park when I lived in Calgary. Is there any pics of millennium park post flood?",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Millennium Park, Calgary, AB",
+        "lat": 51.0452,
+        "lon": -114.0913,
+        "confidence": 0.42,
+        "method": "gazetteer",
+        "alternatives": [
+          {
+            "name": "Millennium Park, Chicago, IL",
+            "lat": 41.8826,
+            "lon": -87.6226
+          }
+        ]
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_030",
+    "source": "csv",
+    "text": "I'm at Los Chilitos Taco and Tequila House (Calgary, AB) http://t.co/Rw6VAXrVIN",
+    "labels": {
+      "relevant": {
+        "value": false,
+        "confidence": 0.91
+      },
+      "hazard": {
+        "value": "other",
+        "confidence": 0.55
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": true,
+        "confidence": 0.89
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Calgary, AB",
+        "lat": 51.0447,
+        "lon": -114.0719,
+        "confidence": 0.94,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_031",
+    "source": "csv",
+    "text": "Floor Hand - Oil and Gas needed in Red Deer, AB, good pay and benefits, Please Apply Today!!! #job #hiring http://t.co/LhnEv6wJpY",
+    "labels": {
+      "relevant": {
+        "value": false,
+        "confidence": 0.91
+      },
+      "hazard": {
+        "value": "other",
+        "confidence": 0.55
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": true,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": true,
+        "confidence": 0.89
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_032",
+    "source": "csv",
+    "text": "Machine Tool Sales Representative needed in Calgary. Great pay ! #job #hiring http://t.co/rRXweaBFkZ",
+    "labels": {
+      "relevant": {
+        "value": false,
+        "confidence": 0.91
+      },
+      "hazard": {
+        "value": "other",
+        "confidence": 0.55
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": true,
+        "confidence": 0.89
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Calgary, AB",
+        "lat": 51.0447,
+        "lon": -114.0719,
+        "confidence": 0.94,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_033",
+    "source": "csv",
+    "text": "Class 1 or 2 Experienced Tour Coach Operator / Bus Driver needed in Fort Mcmurray, AB #job #hiring http://t.co/UnNdB6302z",
+    "labels": {
+      "relevant": {
+        "value": false,
+        "confidence": 0.91
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": true,
+        "confidence": 0.89
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_034",
+    "source": "csv",
+    "text": "We are now hiring for a Construction Estimator in Calgary, AB - Click here for more details -&gt; #job #hiring http://t.co/J3AfkiAuOo",
+    "labels": {
+      "relevant": {
+        "value": false,
+        "confidence": 0.91
+      },
+      "hazard": {
+        "value": "other",
+        "confidence": 0.55
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": true,
+        "confidence": 0.89
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Calgary, AB",
+        "lat": 51.0447,
+        "lon": -114.0719,
+        "confidence": 0.94,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_035",
+    "source": "csv",
+    "text": "Camping tomorrow. That would be fun.",
+    "labels": {
+      "relevant": {
+        "value": false,
+        "confidence": 0.34
+      },
+      "hazard": {
+        "value": "other",
+        "confidence": 0.55
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_036",
+    "source": "csv",
+    "text": "Getting mask fitted tom so I can go out to the upgrader. #nowwearetalking #fortmac",
+    "labels": {
+      "relevant": {
+        "value": false,
+        "confidence": 0.34
+      },
+      "hazard": {
+        "value": "other",
+        "confidence": 0.55
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_037",
+    "source": "csv",
+    "text": "Vestara did not see what happened next, exactly, because she was diving #into the cave after Ahri. She rolled across the",
+    "labels": {
+      "relevant": {
+        "value": false,
+        "confidence": 0.34
+      },
+      "hazard": {
+        "value": "other",
+        "confidence": 0.55
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_038",
+    "source": "csv",
+    "text": "@britanniaderm are you guys still open??",
+    "labels": {
+      "relevant": {
+        "value": false,
+        "confidence": 0.34
+      },
+      "hazard": {
+        "value": "other",
+        "confidence": 0.55
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_039",
+    "source": "csv",
+    "text": "if i could drive my life would be easier!",
+    "labels": {
+      "relevant": {
+        "value": false,
+        "confidence": 0.34
+      },
+      "hazard": {
+        "value": "other",
+        "confidence": 0.55
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_040",
+    "source": "csv",
+    "text": "s fist down hard upon the desk. He roared, I 'didn't not' tell you because #I thought you were smart enough to know bett",
+    "labels": {
+      "relevant": {
+        "value": false,
+        "confidence": 0.34
+      },
+      "hazard": {
+        "value": "other",
+        "confidence": 0.55
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_041",
+    "source": "csv",
+    "text": "stood in the middle of the chaos, wielding a pair of blaster pistols and snapping his tail spike outward in menacing fa",
+    "labels": {
+      "relevant": {
+        "value": false,
+        "confidence": 0.34
+      },
+      "hazard": {
+        "value": "other",
+        "confidence": 0.55
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_042",
+    "source": "csv",
+    "text": "#Calgary, I am so proud of you! Calgarians, you rock with your #solidarity! #hometownpride #love #canada #yyc #flooding #RT @wwwDORIca :)",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.86
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [
+      {
+        "name": "Calgary, AB",
+        "lat": 51.0447,
+        "lon": -114.0719,
+        "confidence": 0.94,
+        "method": "gazetteer"
+      }
+    ],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_043",
+    "source": "csv",
+    "text": "#News Floods displace nearly 200,000 in western Canada\\http://t.co/2q8NrnECDm",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "evacuation",
+        "confidence": 0.76
+      },
+      "severity": {
+        "value": 2,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": false,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_044",
+    "source": "csv",
+    "text": "@windspeakernews @ABHumanServices thanks you too. I hope the people of Siska all got out safely. #YYC #abflood #floods #yccflood",
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.88
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.93
+      },
+      "category": {
+        "value": "sentiment",
+        "confidence": 0.48
+      },
+      "severity": {
+        "value": 0,
+        "confidence": 0.61
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.72
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.58
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.95
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.93
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.64
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917",
+    "duplicateCount": 1
+  },
+  {
+    "id": "r_049",
+    "source": "image",
+    "text": "Photo submitted from the ground. Water over the deck of the bridge.",
+    "imageRef": "/sample/demo-bridge.jpg",
+    "imageAlt": "Brown floodwater covering a two-lane concrete bridge deck, guardrail partly submerged, overcast sky.",
+    "timestamp": "2013-06-21T14:12:00Z",
+    "provenance": {
+      "fetchMethod": "manual",
+      "fetchedAt": "2026-09-26T14:12:00Z"
+    },
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.96
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.97
+      },
+      "category": {
+        "value": "access_blocked",
+        "confidence": 0.88
+      },
+      "severity": {
+        "value": 2,
+        "confidence": 0.79
+      },
+      "has_place": {
+        "value": true,
+        "confidence": 0.99
+      },
+      "is_request": {
+        "value": false,
+        "confidence": 0.81
+      },
+      "has_pii": {
+        "value": false,
+        "confidence": 0.9
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.97
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.92
+      }
+    },
+    "places": [
+      {
+        "name": "EXIF coordinates",
+        "lat": 50.5772,
+        "lon": -113.8741,
+        "confidence": 1,
+        "method": "exif"
+      }
+    ],
+    "review": "confirmed",
+    "classifier": "jev",
+    "modelVersion": "typesafe/jev-1.13-20260917"
+  },
+  {
+    "id": "r_050",
+    "source": "link",
+    "text": "Checking on [name redacted] at [address redacted] — no answer since the water came up.",
+    "provenance": {
+      "sourceUrl": "https://x.com/example/status/000",
+      "fetchMethod": "oembed",
+      "fetchedAt": "2026-09-26T14:20:00Z",
+      "author": "redacted"
+    },
+    "labels": {
+      "relevant": {
+        "value": true,
+        "confidence": 0.83
+      },
+      "hazard": {
+        "value": "flood",
+        "confidence": 0.86
+      },
+      "category": {
+        "value": "rescue_request",
+        "confidence": 0.71
+      },
+      "severity": {
+        "value": 2,
+        "confidence": 0.68
+      },
+      "has_place": {
+        "value": false,
+        "confidence": 0.55
+      },
+      "is_request": {
+        "value": true,
+        "confidence": 0.9
+      },
+      "has_pii": {
+        "value": true,
+        "confidence": 0.94
+      },
+      "is_spam": {
+        "value": false,
+        "confidence": 0.96
+      },
+      "firsthand": {
+        "value": true,
+        "confidence": 0.74
+      }
+    },
+    "places": [],
+    "review": "auto",
+    "classifier": "heuristic"
+  }
+]

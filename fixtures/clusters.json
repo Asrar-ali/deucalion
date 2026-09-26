@@ -1,0 +1,134 @@
+[
+  {
+    "id": "c_1",
+    "label": "solidarity and commentary",
+    "recordIds": [
+      "r_003",
+      "r_016",
+      "r_017",
+      "r_024",
+      "r_025",
+      "r_026",
+      "r_027",
+      "r_029",
+      "r_042",
+      "r_044"
+    ],
+    "size": 10,
+    "representativeIds": [
+      "r_003",
+      "r_016"
+    ],
+    "topPlaces": [
+      {
+        "name": "Canmore, AB",
+        "count": 3
+      },
+      {
+        "name": "Calgary, AB",
+        "count": 2
+      },
+      {
+        "name": "Siksika Nation 146",
+        "count": 2
+      }
+    ]
+  },
+  {
+    "id": "c_2",
+    "label": "evacuation and shelter",
+    "recordIds": [
+      "r_005",
+      "r_009",
+      "r_010",
+      "r_011",
+      "r_012",
+      "r_013",
+      "r_028",
+      "r_043"
+    ],
+    "size": 8,
+    "representativeIds": [
+      "r_005",
+      "r_009"
+    ],
+    "topPlaces": [
+      {
+        "name": "Calgary, AB",
+        "count": 1
+      },
+      {
+        "name": "Medicine Hat, AB",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "id": "c_3",
+    "label": "donations and volunteers",
+    "recordIds": [
+      "r_014",
+      "r_015",
+      "r_018",
+      "r_019",
+      "r_020",
+      "r_021",
+      "r_022",
+      "r_023"
+    ],
+    "size": 8,
+    "representativeIds": [
+      "r_014",
+      "r_015"
+    ],
+    "topPlaces": [
+      {
+        "name": "Calgary, AB",
+        "count": 4
+      },
+      {
+        "name": "Siksika Nation 146",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "id": "c_4",
+    "label": "roads and bridges blocked",
+    "recordIds": [
+      "r_002",
+      "r_004",
+      "r_006",
+      "r_007",
+      "r_008",
+      "r_049"
+    ],
+    "size": 6,
+    "representativeIds": [
+      "r_002",
+      "r_004"
+    ],
+    "topPlaces": [
+      {
+        "name": "Calgary, AB",
+        "count": 1
+      },
+      {
+        "name": "EXIF coordinates",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "id": "c_5",
+    "label": "requests for help",
+    "recordIds": [
+      "r_050"
+    ],
+    "size": 1,
+    "representativeIds": [
+      "r_050"
+    ],
+    "topPlaces": []
+  }
+]

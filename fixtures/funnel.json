@@ -1,0 +1,18 @@
+{
+  "raw": 8024,
+  "deduped": 7562,
+  "prefiltered": 4487,
+  "relevant": 3218,
+  "mappable": 906,
+  "noPlaceMentioned": 2312,
+  "rejectedRows": [
+    {
+      "row": 412,
+      "reason": "empty text column"
+    },
+    {
+      "row": 5891,
+      "reason": "duplicate of row 5104"
+    }
+  ]
+}
