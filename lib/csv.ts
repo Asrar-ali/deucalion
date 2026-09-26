@@ -114,7 +114,12 @@ export function parseCsv(input: string, forcedColumn?: string): ParsedCsv {
 
   const parsed = Papa.parse<Record<string, string>>(text, {
     header: true,
-    skipEmptyLines: "greedy",
+    // "greedy" also treats a whitespace-only line as empty and drops it before we ever
+    // see it — a row whose text is only spaces then vanishes with no rejection, which
+    // breaks the "never swallowed" rule. Plain `true` only skips genuinely zero-length
+    // lines, so a whitespace-only row still reaches the per-row check below and gets
+    // rejected with its real row number.
+    skipEmptyLines: true,
     // Empty string means "sniff it" — handles tab- and semicolon-delimited uploads.
     delimiter: "",
     transformHeader: (h) => h.trim(),
@@ -172,11 +177,26 @@ export function parseCsv(input: string, forcedColumn?: string): ParsedCsv {
   });
 
   // Papaparse reports structural problems per row; surface them rather than hiding them.
+  // Exception: "UndetectableDelimiter" is not a row problem at all — Papa emits it whenever
+  // there is not enough information to compare candidate delimiters (a single-column file,
+  // which is exactly the shape of the provided dataset's `tweet` column, or a one-line
+  // file). It always carries `row: undefined`, so surfacing it verbatim would attach a
+  // confusing, wrong-looking "row 2" complaint to every single-column upload even though
+  // the parse is completely correct. Real splitting mistakes still show up as their own
+  // TooFewFields/TooManyFields errors below, which DO carry a real row.
   for (const err of parsed.errors ?? []) {
+    if (err.code === "UndetectableDelimiter") continue;
     rejected.push({
       row: (err.row ?? 0) + 2,
       reason: err.message || String(err.type),
     });
+  }
+
+  // A header row with zero data rows parses "successfully" with nothing to show for it.
+  // Say so plainly instead of returning an empty rejected list next to zero rows, which
+  // reads like the parse silently swallowed something.
+  if (data.length === 0) {
+    rejected.push({ row: 1, reason: "header row found, but the file has no data rows" });
   }
 
   return { rows, headers, chosenColumn, mapped, rejected };
