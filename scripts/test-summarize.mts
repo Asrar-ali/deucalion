@@ -208,4 +208,9 @@ if (hadKey) process.env.GEMINI_API_KEY = hadKey;
 // ---------------------------------------------------------------------------
 
 console.log(`\n${failures === 0 ? "PASS" : "FAIL"}: ${failures} failing assertion(s)`);
-process.exit(failures === 0 ? 0 : 1);
+process.exitCode = failures === 0 ? 0 : 1;
+// process.exit() here races Node's own libuv teardown on Windows against an
+// AbortSignal.timeout() left over from the LLM client (an unhandled async handle at
+// shutdown), and occasionally crashes with "flags & UV_HANDLE_CLOSING" AFTER every
+// assertion above has already printed and passed. Setting exitCode and returning lets
+// the event loop drain normally instead of forcing a hard stop mid-teardown.
