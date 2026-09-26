@@ -25,11 +25,13 @@ import {
   CLASSIFIER_META,
   GEO_METHOD_META,
   SEVERITY_LABELS,
-  confidenceBand,
   pct,
   severityBand,
 } from "../lib/display";
+import { CONFIDENCE_GATE } from "../lib/questions";
 import type { Category, FloodRecord, GeoMethod, PlaceHit } from "../lib/types";
+import { resolveGauge } from "./gaugeState";
+import { StaffGauge } from "./StaffGauge";
 
 const ICONS: Record<string, Icon> = {
   Lifebuoy,
@@ -76,49 +78,38 @@ export function CategoryTag({ category }: { category: Category | undefined }) {
 }
 
 /**
- * Confidence as a filled track plus the number. The number is always present: a bar alone
- * is a vibe, and this model family is documented as over-confident, so the reader is owed
- * the actual figure.
+ * Confidence as a Staff Gauge: a vertical meter modelled on the graduated post read at river
+ * gauging stations, filled to the confidence, with the review threshold painted on it like a
+ * flood-stage mark. The number is always present: a bar alone is a vibe, and this model family
+ * is documented as over-confident, so the reader is owed the actual figure.
+ *
+ * Pass `classifier` so rows labelled by local keyword rules show "no reading" instead of a
+ * fill: their score is a ranking signal, not a probability. Pass `gate` for answers whose
+ * review threshold differs from relevance (category 0.5, spam 0.7, personal details 0.3).
  */
 export function ConfidenceMeter({
   value,
   label = "Confidence",
   compact = false,
+  gate = CONFIDENCE_GATE.relevant,
+  classifier,
+  review,
 }: {
   value: number | undefined;
   label?: string;
   compact?: boolean;
+  gate?: number;
+  classifier?: FloodRecord["classifier"];
+  review?: FloodRecord["review"];
 }) {
-  const band = confidenceBand(value);
-  const tone = TONE_VAR[band.tone];
-  const filled = Math.round((value ?? 0) * 100);
-
-  return (
-    <span className="inline-flex items-center gap-2" title={`${label}: ${pct(value)} (${band.label})`}>
-      <span
-        role="meter"
-        aria-valuenow={filled}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`${label} ${filled} out of 100, ${band.label}`}
-        className="relative block h-1.5 overflow-hidden rounded-full"
-        style={{ width: compact ? 28 : 44, background: "var(--surface-inset)" }}
-      >
-        <span
-          className="absolute inset-y-0 left-0 block rounded-full"
-          style={{ width: `${filled}%`, background: tone.fg }}
-        />
-      </span>
-      <span className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>
-        {pct(value)}
-      </span>
-      {!compact && (
-        <span className="text-xs" style={{ color: tone.fg }}>
-          {band.label}
-        </span>
-      )}
-    </span>
-  );
+  const view = resolveGauge({
+    decision: value == null ? undefined : { value: true, confidence: value },
+    gate,
+    classifier,
+    review,
+    answer: label,
+  });
+  return <StaffGauge view={view} gate={gate} size={compact ? "xs" : "sm"} />;
 }
 
 /** Severity as a three-step ladder. Reads as a shape even with colour stripped out. */

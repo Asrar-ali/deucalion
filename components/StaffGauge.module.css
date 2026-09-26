@@ -1,0 +1,40 @@
+.wrap { display: inline-flex; align-items: flex-end; gap: 6px; }
+.frame {
+  position: relative; flex: none;
+  border: 1.5px solid var(--text); border-radius: 2px; background: var(--surface-raised);
+}
+/* graduations every 0.1 on the right edge, longer at 0.5 */
+.frame::before {
+  content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: 35%;
+  background: repeating-linear-gradient(to top, transparent 0 calc(10% - 1px), var(--text) calc(10% - 1px) 10%);
+  opacity: .55; pointer-events: none; z-index: 2;
+}
+.frame::after {
+  content: ""; position: absolute; right: 0; width: 60%; height: 1px; bottom: 50%;
+  background: var(--text); opacity: .55; z-index: 2;
+}
+.xs { width: 8px; height: 24px; }
+.sm { width: 12px; height: 40px; }
+.lg { width: 20px; height: 92px; }
+.fill { position: absolute; left: 0; right: 0; bottom: 0; background: var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .fill { transition: height .3s ease-out; } }
+.below .fill { background: repeating-linear-gradient(135deg, var(--review) 0 4px, var(--text) 4px 6px); }
+.noReading { border-style: dashed; }
+.pending { opacity: .45; }
+.rejected::before { display: none; }
+.rejectedStrike {
+  position: absolute; inset: -2px; z-index: 3;
+  background: linear-gradient(to top right, transparent calc(50% - 1px), var(--text) calc(50% - 1px), var(--text) calc(50% + 1px), transparent calc(50% + 1px));
+}
+.cap { position: absolute; left: -3px; right: -3px; height: 3px; background: var(--text); z-index: 3; }
+.line {
+  position: absolute; left: -5px; right: -5px; height: 2px; z-index: 4;
+  background: var(--review); outline: 1px solid var(--text);
+}
+.num { font-size: 12px; line-height: 1; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.lgNum { font-size: 15px; font-weight: 600; color: var(--text); }
+@media (forced-colors: active) {
+  .frame { border-color: CanvasText; }
+  .fill { background: Highlight; forced-color-adjust: none; }
+  .line { background: Mark; outline-color: CanvasText; }
+}

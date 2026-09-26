@@ -13,14 +13,16 @@ import { useMemo } from "react";
 import { CaretDown, CaretUp, Image as ImageIcon, Link as LinkIcon, Microphone, Table } from "@phosphor-icons/react/dist/ssr";
 
 import { CATEGORY_META, count, severityBand } from "../lib/display";
+import { CONFIDENCE_GATE } from "../lib/questions";
 import {
   CategoryTag,
   ClassifierTag,
   CommunityTag,
-  ConfidenceMeter,
   PlaceChip,
   SeverityLadder,
 } from "./Signals";
+import { StaffGauge } from "./StaffGauge";
+import { resolveGauge } from "./gaugeState";
 import type { FloodRecord } from "../lib/types";
 
 export type SortKey = "severity" | "confidence" | "category" | "place";
@@ -136,6 +138,16 @@ export function RecordsTable({
             const selected = record.id === selectedId;
             const Icon = SOURCE_ICON[record.source] ?? Table;
             const community = record.places.find((p) => p.community)?.community;
+            const relevantGauge = resolveGauge({
+              decision: record.labels.relevant,
+              gate: CONFIDENCE_GATE.relevant,
+              classifier: record.classifier,
+              review: record.review,
+              answer:
+                record.labels.relevant?.value === false
+                  ? "Sure it's not about the event"
+                  : "Sure it's about the event",
+            });
 
             return (
               <tr
@@ -230,14 +242,26 @@ export function RecordsTable({
                 </td>
 
                 <td className="px-2 py-2">
-                  <ConfidenceMeter value={record.labels.relevant?.confidence} compact />
+                  <div className="flex items-center gap-2">
+                    <StaffGauge size="sm" gate={CONFIDENCE_GATE.relevant} view={relevantGauge} />
+                    {relevantGauge.state === "below" && (
+                      <span
+                        className="text-[10px] font-semibold px-1 py-0.5 rounded"
+                        style={{ background: "var(--review-weak)", color: "var(--text)" }}
+                      >
+                        Needs checking
+                      </span>
+                    )}
+                  </div>
                   {record.labels.relevant?.via && (
                     <div
                       className="mt-0.5 text-[10px]"
                       style={{ color: "var(--text-faint)" }}
                       title="Which question carried the relevance decision."
                     >
-                      via {record.labels.relevant.via}
+                      {record.labels.relevant.via === "hazard"
+                        ? "describes the event itself"
+                        : "describes the response"}
                     </div>
                   )}
                 </td>
