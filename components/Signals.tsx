@@ -158,12 +158,12 @@ export function PlaceChip({ place }: { place: PlaceHit }) {
       />
       <span style={{ color: "var(--text)" }}>{place.name}</span>
       <span className="sr-only">, {meta.hint}</span>
-      <span className="font-mono" style={{ color: "var(--text-faint)" }}>
-        {meta.label.toLowerCase()} {pct(place.confidence)}
+      <span className="tabular-nums" style={{ color: "var(--text-muted)" }}>
+        {meta.label.toLowerCase()}, {pct(place.confidence)}
       </span>
       {place.alternatives?.length ? (
         <span
-          className="rounded px-1 font-mono"
+          className="rounded px-1 tabular-nums"
           style={{ background: "var(--review-weak)", color: "var(--review)" }}
           title={`Also possible: ${place.alternatives.map((a) => a.name).join(", ")}`}
         >

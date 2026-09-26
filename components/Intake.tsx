@@ -15,7 +15,6 @@ import {
   Link as LinkIcon,
   Microphone,
   MicrophoneSlash,
-  Play,
   Spinner,
 } from "@phosphor-icons/react/dist/ssr";
 
@@ -259,10 +258,10 @@ export function Intake({
         type="button"
         onClick={() => void loadSample()}
         disabled={disabled}
-        className="flex items-center justify-center gap-2 rounded px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-50"
-        style={{ background: "var(--accent)", color: "var(--accent-text)", borderRadius: "var(--radius)" }}
+        className="flex items-center justify-center gap-2 rounded px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 bg-[var(--accent)] text-[var(--accent-text)] hover:bg-[var(--accent-hover)]"
+        style={{ borderRadius: "var(--radius)" }}
       >
-        {working === "sample" ? <Spinner size={15} className="animate-spin" aria-hidden /> : <Play size={15} weight="fill" aria-hidden />}
+        {working === "sample" ? <Spinner size={15} className="animate-spin" aria-hidden /> : null}
         Load Alberta 2013 sample
       </button>
 
@@ -270,8 +269,8 @@ export function Intake({
         type="button"
         onClick={() => void loadSample("/sample/bonus-global.csv", "bonus-global.csv")}
         disabled={disabled}
-        className="flex items-center justify-center gap-2 rounded px-3 py-2 text-sm transition-opacity disabled:opacity-50"
-        style={{ border: "1px solid var(--line-strong)", color: "var(--text)", borderRadius: "var(--radius)" }}
+        className="flex items-center justify-center gap-2 rounded px-3 py-2 text-sm transition-colors disabled:opacity-50 border border-[var(--line-strong)] bg-[var(--surface-raised)] text-[var(--text)] hover:bg-[var(--surface-sunken)]"
+        style={{ borderRadius: "var(--radius)" }}
         title="61,159 posts about many kinds of disaster worldwide. Mixed files are focused on floods."
       >
         Load world feed (61,159 posts)
@@ -304,13 +303,15 @@ export function Intake({
         <div className="flex gap-1.5">
           <input
             id="paste"
+            name="report"
             type="text"
+            autoComplete="off"
             value={pasted}
             onChange={(e) => setPasted(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") void submitPasted();
             }}
-            placeholder="https://x.com/... or: the bridge on Highway 11 is under water"
+            placeholder="https://x.com/… or: the bridge on Highway 11 is under water"
             disabled={disabled}
             className="min-w-0 flex-1 rounded px-2 py-1.5 text-sm"
             style={{
@@ -332,7 +333,7 @@ export function Intake({
                   ? "Stop dictation"
                   : "Dictate a report. Chrome sends the audio to Google, so this is off in low-bandwidth mode."
               }
-              className="rounded px-2"
+              className="rounded px-2 transition-colors hover:brightness-95"
               style={{
                 border: "1px solid var(--line-strong)",
                 background: listening ? "var(--urgent-weak)" : "var(--surface-raised)",
@@ -347,12 +348,8 @@ export function Intake({
             type="button"
             onClick={() => void submitPasted()}
             disabled={disabled || !pasted.trim()}
-            className="inline-flex items-center gap-1 rounded px-2.5 text-sm disabled:opacity-40"
-            style={{
-              border: "1px solid var(--line-strong)",
-              color: "var(--text)",
-              borderRadius: "var(--radius)",
-            }}
+            className="inline-flex items-center gap-1 rounded px-2.5 text-sm transition-colors disabled:opacity-40 border border-[var(--line-strong)] bg-[var(--surface-raised)] text-[var(--text)] hover:bg-[var(--surface-sunken)]"
+            style={{ borderRadius: "var(--radius)" }}
           >
             {working === "link" || working === "text" ? (
               <Spinner size={15} className="animate-spin" aria-hidden />
@@ -398,12 +395,8 @@ function FileButton({
         type="button"
         onClick={() => input.current?.click()}
         disabled={disabled}
-        className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-sm disabled:opacity-50"
-        style={{
-          border: "1px solid var(--line-strong)",
-          color: "var(--text)",
-          borderRadius: "var(--radius)",
-        }}
+        className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-sm transition-colors disabled:opacity-50 border border-[var(--line-strong)] bg-[var(--surface-raised)] text-[var(--text)] hover:bg-[var(--surface-sunken)]"
+        style={{ borderRadius: "var(--radius)" }}
       >
         {busy ? <Spinner size={15} className="animate-spin" aria-hidden /> : icon}
         {label}

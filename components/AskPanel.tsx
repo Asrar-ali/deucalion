@@ -9,7 +9,7 @@
  * carries citation chips instead of being trusted on its own.
  */
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { tokenize } from "../lib/prefilter";
 import type { FloodRecord } from "../lib/types";
@@ -91,6 +91,11 @@ export function AskPanel({
   const [readingCount, setReadingCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
 
   const relevantRecords = useMemo(
     () => records.filter((r) => r.labels.relevant?.value === true),
@@ -119,7 +124,10 @@ export function AskPanel({
       const data = await res.json().catch(() => null);
 
       if (!res.ok || !data) {
-        setError((data && data.error) || `Ask failed (${res.status}).`);
+        setError(
+          (data && data.error) ||
+            `Ask failed (${res.status}). Try again in a moment, or use the Summary page.`,
+        );
         return;
       }
 
@@ -129,7 +137,11 @@ export function AskPanel({
       ]);
       setQuestion("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ask failed.");
+      setError(
+        err instanceof Error
+          ? `${err.message} Try again in a moment, or use the Summary page.`
+          : "Ask failed. Try again in a moment, or use the Summary page.",
+      );
     } finally {
       setLoading(false);
     }
@@ -167,23 +179,19 @@ export function AskPanel({
             </label>
             <textarea
               id={questionId}
+              name="question"
+              autoComplete="off"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               disabled={loading}
               rows={3}
-              className="w-full rounded text-sm p-2"
-              style={{
-                border: "1px solid var(--line-strong)",
-                background: "var(--surface-raised)",
-                color: "var(--text)",
-              }}
+              className="w-full rounded text-sm p-2 border border-[var(--line-strong)] bg-[var(--surface-raised)] text-[var(--text)]"
             />
             <div>
               <button
                 type="submit"
                 disabled={loading}
-                className="rounded px-3 py-1.5 text-sm font-medium"
-                style={{ background: "var(--accent)", color: "var(--accent-text)" }}
+                className="rounded px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 bg-[var(--accent)] text-[var(--accent-text)] hover:bg-[var(--accent-hover)]"
               >
                 Ask
               </button>
@@ -197,8 +205,7 @@ export function AskPanel({
                 type="button"
                 disabled={loading}
                 onClick={() => handleSuggestion(s)}
-                className="rounded px-2 py-1 text-sm text-left"
-                style={{ border: "1px solid var(--line)", color: "var(--text-muted)" }}
+                className="rounded px-2 py-1 text-sm text-left transition-colors disabled:opacity-50 border border-[var(--line-strong)] bg-[var(--surface-raised)] text-[var(--text-muted)] hover:bg-[var(--surface-sunken)]"
               >
                 {s}
               </button>
@@ -212,7 +219,13 @@ export function AskPanel({
           ) : null}
 
           {error ? (
-            <p className="mt-2 text-sm" role="alert" style={{ color: "var(--urgent)" }}>
+            <p
+              ref={errorRef}
+              tabIndex={-1}
+              className="mt-2 text-sm"
+              role="alert"
+              style={{ color: "var(--urgent)" }}
+            >
               {error}
             </p>
           ) : null}
@@ -246,7 +259,7 @@ export function AskPanel({
                               type="button"
                               onClick={() => onSelectRecord(id)}
                               aria-label={`Open cited post ${id}`}
-                              className="font-mono text-xs rounded px-1 ml-1 align-middle"
+                              className="font-mono text-xs rounded px-1 ml-1 align-middle transition-colors hover:bg-[var(--accent-weak)]"
                               style={{ border: "1px solid var(--line-strong)", color: "var(--accent)" }}
                             >
                               {id}

@@ -33,6 +33,12 @@ export const viewport: Viewport = {
   initialScale: 1,
   // Never block zoom. Pinch-zoom is assistive technology for a lot of people.
   maximumScale: 5,
+  // Matches --surface in app/globals.css for each theme, so the browser chrome (status bar,
+  // address bar) doesn't flash a mismatched colour on load.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fbfcfd" },
+    { media: "(prefers-color-scheme: dark)", color: "#15191e" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

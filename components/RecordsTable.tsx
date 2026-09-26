@@ -185,12 +185,14 @@ export function RecordsTable({
                 }}
               >
                 <td className="px-2 py-2">
-                  <Icon
-                    size={13}
-                    role="img"
-                    aria-label={`Source: ${record.source}`}
-                    style={{ color: "var(--text-faint)" }}
-                  />
+                  {record.source !== "csv" && (
+                    <Icon
+                      size={13}
+                      role="img"
+                      aria-label={`Source: ${record.source}`}
+                      style={{ color: "var(--text-faint)" }}
+                    />
+                  )}
                 </td>
 
                 <td className="px-2 py-2" style={{ maxWidth: "38ch" }}>
@@ -230,11 +232,13 @@ export function RecordsTable({
                   )}
 
                   <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <ClassifierTag classifier={record.classifier} />
+                    {record.classifier === "heuristic" && (
+                      <ClassifierTag classifier={record.classifier} />
+                    )}
                     {community && <CommunityTag name={community.name} />}
                     {record.duplicateCount && record.duplicateCount > 1 && (
                       <span
-                        className="font-mono text-sm"
+                        className="text-sm tabular-nums"
                         style={{ color: "var(--text-faint)" }}
                         title="Identical or retweeted copies collapsed into this row."
                       >
@@ -320,43 +324,25 @@ export function RecordsTable({
         >
           {/* The footer stays mounted once it has appeared: unmounting the pressed button drops
               keyboard focus to body, and unmounting the live region loses the final count. */}
-          {limit >= sorted.length ? (
-            <>
-              <span aria-live="polite">Showing all {count(sorted.length)} reports.</span>
-              <button
-                type="button"
-                onClick={() => setLimit(PAGE)}
-                className="rounded px-2.5 py-1"
-                style={{ border: "1px solid var(--line-strong)", color: "var(--text)", borderRadius: "var(--radius)" }}
-              >
-                Show first {count(PAGE)} only
-              </button>
-            </>
-          ) : (
-            <>
-              {/* aria-live so a screen reader hears the new count after pressing a button. */}
-              <span aria-live="polite">
-                Showing {count(Math.min(limit, sorted.length))} of {count(sorted.length)} reports, in the
-                current sort order. The map shows all of them.
-              </span>
-              <button
-                type="button"
-                onClick={() => setLimit((n) => n + PAGE)}
-                className="rounded px-2.5 py-1"
-                style={{ border: "1px solid var(--line-strong)", color: "var(--text)", borderRadius: "var(--radius)" }}
-              >
-                Show {count(Math.min(PAGE, sorted.length - limit))} more
-              </button>
-              <button
-                type="button"
-                onClick={() => setLimit(sorted.length)}
-                className="rounded px-2.5 py-1"
-                style={{ border: "1px solid var(--line)", color: "var(--text-muted)", borderRadius: "var(--radius)" }}
-                title="Rendering thousands of rows can be slow. Use Export for the full data."
-              >
-                Show all
-              </button>
-            </>
+          {/* aria-live so a screen reader hears the new count after pressing the button. */}
+          <span aria-live="polite" className="tabular-nums">
+            Showing {count(Math.min(limit, sorted.length))} of {count(sorted.length)} reports, in the
+            current sort order. The map shows all of them.
+          </span>
+          {limit < sorted.length && (
+            <button
+              type="button"
+              onClick={() => setLimit((n) => Math.min(n + PAGE, sorted.length))}
+              className="rounded px-2.5 py-1 tabular-nums hover:bg-[var(--surface-sunken)]"
+              style={{
+                border: "1px solid var(--line-strong)",
+                background: "var(--surface-raised)",
+                color: "var(--text)",
+                borderRadius: "var(--radius)",
+              }}
+            >
+              Show {count(Math.min(PAGE, sorted.length - limit))} more
+            </button>
           )}
         </div>
       )}

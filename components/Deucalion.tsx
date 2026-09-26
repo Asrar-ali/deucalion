@@ -40,7 +40,7 @@ import type {
 } from "../lib/types";
 import { FunnelStrip } from "./FunnelStrip";
 import { Intake, type IngestResult } from "./Intake";
-import { CategoryLegend, RecordsTable, type SortKey } from "./RecordsTable";
+import { RecordsTable, type SortKey } from "./RecordsTable";
 import { RecordDetail, type ReviewAction } from "./RecordDetail";
 import { AskPanel } from "./AskPanel";
 
@@ -162,31 +162,77 @@ export function Deucalion() {
   // can be shared, since nothing else here is server-side.
   const [view, setView] = useState<View>("data");
 
-  // Read the hash once on mount, in case the page was opened on a link to a specific view.
+  // Restore the view, the selected record and the main filters (q, cat, flood) from the URL
+  // hash: on first load, in case the page was opened on a shared link, and again whenever the
+  // hash changes under us, since the back/forward buttons fire "hashchange" without a reload.
+  // Format: "#reports?q=bridge&cat=access_blocked,evacuation&flood=1&sel=r_014". A param is
+  // absent whenever it matches DEFAULT_FILTERS, so an ordinary "#map" keeps working unchanged.
   useEffect(() => {
-    const h = window.location.hash.replace("#", "");
-    if (isView(h)) setView(h);
+    const applyHash = () => {
+      const raw = window.location.hash.replace(/^#/, "");
+      const qMark = raw.indexOf("?");
+      const viewPart = qMark === -1 ? raw : raw.slice(0, qMark);
+      const params = new URLSearchParams(qMark === -1 ? "" : raw.slice(qMark + 1));
+      if (isView(viewPart)) setView(viewPart);
+
+      const cat = params.get("cat");
+      const q = params.get("q");
+      const flood = params.get("flood");
+      setFilters((f) => ({
+        ...f,
+        query: q ?? DEFAULT_FILTERS.query,
+        categories: cat
+          ? new Set(
+              cat.split(",").filter((c): c is Category => (CATEGORY_ORDER as readonly string[]).includes(c)),
+            )
+          : new Set(DEFAULT_FILTERS.categories),
+        floodOnly: flood === "1",
+      }));
+      setSelectedId(params.get("sel"));
+    };
+
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+    return () => window.removeEventListener("hashchange", applyHash);
   }, []);
 
-  // Keep the hash in sync with the current view. replaceState (not push) so switching views
-  // does not spam the browser history stack.
+  // Typing a query re-writes the hash on every keystroke otherwise, fighting the browser and
+  // spamming replaceState. Debounce just the text param; the view, categories, flood-only and
+  // selection params below still write immediately.
+  const [hashQuery, setHashQuery] = useState("");
   useEffect(() => {
-    const target = `#${view}`;
+    const t = setTimeout(() => setHashQuery(filters.query), 300);
+    return () => clearTimeout(t);
+  }, [filters.query]);
+
+  // Keep the hash in sync with the current view, selection and main filters, so a link or the
+  // back button can restore them. replaceState (not push) so this never spams browser history.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (hashQuery.trim()) params.set("q", hashQuery);
+    const activeCategories = CATEGORY_ORDER.filter((c) => filters.categories.has(c));
+    if (activeCategories.length !== CATEGORY_ORDER.length) params.set("cat", activeCategories.join(","));
+    if (filters.floodOnly) params.set("flood", "1");
+    if (selectedId) params.set("sel", selectedId);
+    const qs = params.toString();
+    const target = `#${view}${qs ? `?${qs}` : ""}`;
     if (window.location.hash !== target) {
       window.history.replaceState(null, "", target);
     }
-  }, [view]);
+  }, [view, hashQuery, filters.categories, filters.floodOnly, selectedId]);
 
-  // A hash edited by hand, or changed by the back/forward buttons, should still move the app
-  // to the matching view.
+  // Everything lives only in memory (see the file banner). Warn before a reload or close
+  // discards it, but only once there is something real to lose: never in demo mode (nothing
+  // was actually collected) and never once wipe has cleared the working set back to empty.
   useEffect(() => {
-    const onHashChange = () => {
-      const h = window.location.hash.replace("#", "");
-      if (isView(h)) setView(h);
+    if (demoMode || records.length === 0) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
     };
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [demoMode, records.length]);
 
   // Preferences live on <html> as data attributes so globals.css can act on them without any
   // JS in the render path. Reads are wrapped because storage throws in private windows.
@@ -434,13 +480,20 @@ export function Deucalion() {
         });
         const data = (await res.json()) as { clusters?: Cluster[]; brief?: Brief; error?: string };
         if (!res.ok) {
-          notify(data.error ?? `Could not build a summary (${res.status}).`);
+          notify(
+            data.error ??
+              `Could not build a summary (${res.status}). The filters and map still work; try again in a moment.`,
+          );
           return;
         }
         setClusters(data.clusters ?? []);
         setBrief(data.brief ?? null);
       } catch (err) {
-        notify(err instanceof Error ? err.message : "Could not build a summary.");
+        notify(
+          err instanceof Error
+            ? err.message
+            : "Could not build a summary. The filters and map still work; try again in a moment.",
+        );
       }
     },
     [records, notify],
@@ -455,7 +508,7 @@ export function Deucalion() {
           body: JSON.stringify({ records, format, clusters, brief, profile, funnel }),
         });
         if (!res.ok) {
-          notify(`Export failed (${res.status}).`);
+          notify(`Export failed (${res.status}). Try again, or download the CSV instead.`);
           return;
         }
         const blob = await res.blob();
@@ -468,7 +521,9 @@ export function Deucalion() {
         anchor.click();
         URL.revokeObjectURL(url);
       } catch (err) {
-        notify(err instanceof Error ? err.message : "Export failed.");
+        notify(
+          err instanceof Error ? err.message : "Export failed. Try again, or download the CSV instead.",
+        );
       }
     },
     [records, clusters, brief, profile, funnel, notify],
@@ -549,7 +604,7 @@ export function Deucalion() {
           >
             Deucalion
           </h1>
-          <span className="text-sm" style={{ color: "var(--text-faint)" }}>
+          <span className="hidden text-sm sm:inline" style={{ color: "var(--text-faint)" }}>
             the living flood map
           </span>
           {demoMode && (
@@ -564,7 +619,7 @@ export function Deucalion() {
         </div>
 
         {profile && (
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          <p className="w-full text-sm sm:w-auto" style={{ color: "var(--text-muted)" }}>
             {profile.userEdited ? "Mapping:" : "Detected event:"}{" "}
             <strong style={{ color: "var(--text)" }}>{profile.hazard}</strong>
             {placeNames(profile.places).length > 0 && <> near {placeNames(profile.places).slice(0, 3).join(", ")}</>}
@@ -575,15 +630,15 @@ export function Deucalion() {
           <button
             type="button"
             onClick={() => setView("data")}
-            className="rounded px-2 py-1 text-sm font-medium"
-            style={{ color: "var(--text-muted)", borderRadius: "var(--radius)" }}
+            className="rounded px-2 py-1 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)] hover:underline"
+            style={{ borderRadius: "var(--radius)" }}
           >
             Load data
           </button>
           {spend && !spend.unlimited && (
             <span
-              className="font-mono text-sm"
-              title={`Metered from the provider's own reported cost. Budget ${usd(spend.budget)} per session.`}
+              className="tabular-nums text-sm"
+              title={`Metered from the provider’s own reported cost. Budget ${usd(spend.budget)} per session.`}
               style={{ color: "var(--text-muted)" }}
             >
               {usd(spend.used)}
@@ -621,6 +676,7 @@ export function Deucalion() {
                 type="button"
                 onClick={() => setNotices((prev) => prev.filter((n) => n !== notice))}
                 aria-label="Dismiss"
+                className="shrink-0 hover:opacity-70"
               >
                 <X size={12} aria-hidden />
               </button>
@@ -638,9 +694,10 @@ export function Deucalion() {
             type="button"
             onClick={() => setView(v.key)}
             aria-current={view === v.key ? "page" : undefined}
-            className="shrink-0 py-2 text-sm font-medium"
+            className={`shrink-0 py-2 text-sm font-medium hover:text-[var(--text)] ${
+              view === v.key ? "text-[var(--text)]" : "text-[var(--text-muted)]"
+            }`}
             style={{
-              color: view === v.key ? "var(--text)" : "var(--text-muted)",
               borderBottom: view === v.key ? "1.5px solid var(--text)" : "1.5px solid transparent",
             }}
           >
@@ -653,16 +710,21 @@ export function Deucalion() {
         {view === "data" && (
           <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6">
             <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-              Load the provided sample or your own CSV of posts. Deucalion classifies each post,
-              maps the ones that name a place, and summarises them. Nothing is stored on the
-              server.
+              Two steps: choose what to map, then load your posts below. Deucalion classifies
+              each one, maps the ones that name a place, and summarises them. Nothing is stored
+              on the server.
             </p>
 
             <div>
-              <label htmlFor="focus" className="block text-sm font-medium" style={{ color: "var(--text-muted)" }}>
-                What to map
-              </label>
+              <h2
+                id="focus-heading"
+                className="text-base font-semibold"
+                style={{ color: "var(--text)" }}
+              >
+                1. Choose what to map
+              </h2>
               <select
+                aria-labelledby="focus-heading"
                 id="focus"
                 value={focus}
                 onChange={(e) => setFocus(e.target.value as Focus)}
@@ -714,7 +776,7 @@ export function Deucalion() {
                   .sort((a, b) => b[1] - a[1])
                   .map(([hazard, share]) => `${hazard} ${Math.round(share * 100)}%`)
                   .join(", ")}
-                . Showing flood posts only. Untick &quot;Only posts about flooding&quot; in the filters to see the rest.
+                . Showing flood posts only. Untick “Only posts about flooding” in the filters to see the rest.
               </div>
             ) : null}
           </div>
@@ -749,7 +811,7 @@ export function Deucalion() {
                       Overlays the right of the map on desktop, sits under the map on a phone. */}
                   {selected && (
                     <div
-                      className="z-10 border-b lg:absolute lg:right-0 lg:top-0 lg:h-[52vh] lg:w-[400px] lg:overflow-y-auto lg:border-b-0 lg:border-l"
+                      className="z-10 overscroll-contain border-b lg:absolute lg:right-0 lg:top-0 lg:h-[52vh] lg:w-[400px] lg:overflow-y-auto lg:border-b-0 lg:border-l"
                       style={{ borderColor: "var(--line)", background: "var(--surface-raised)" }}
                     >
                       <RecordDetail record={selected} hazardNoun={hazardNoun} onClose={() => setSelectedId(null)} onReview={onReview} />
@@ -769,7 +831,7 @@ export function Deucalion() {
                     <button
                       type="button"
                       onClick={() => setView("reports")}
-                      className="underline"
+                      className="hover:underline"
                       style={{ color: "var(--text)" }}
                     >
                       See them as a list
@@ -808,12 +870,15 @@ export function Deucalion() {
                 {filters.cluster && (
                   <p className="flex items-center gap-2 text-sm" style={{ color: "var(--text)" }}>
                     Theme: {filters.cluster.label}
-                    <button type="button" className="underline" onClick={() => setFilters((f) => ({ ...f, cluster: null }))}>
+                    <button
+                      type="button"
+                      className="hover:underline"
+                      onClick={() => setFilters((f) => ({ ...f, cluster: null }))}
+                    >
                       Clear
                     </button>
                   </p>
                 )}
-                <CategoryLegend />
               </div>
 
               <div className="flex min-w-0 flex-1 flex-col lg:flex-row">
@@ -829,7 +894,7 @@ export function Deucalion() {
                 </div>
                 {selected && (
                   <div
-                    className="hidden shrink-0 lg:block lg:w-[400px] lg:overflow-y-auto lg:border-l"
+                    className="hidden shrink-0 overscroll-contain lg:block lg:w-[400px] lg:overflow-y-auto lg:border-l"
                     style={{ borderColor: "var(--line)", background: "var(--surface-raised)" }}
                   >
                     <RecordDetail record={selected} hazardNoun={hazardNoun} onClose={() => setSelectedId(null)} onReview={onReview} />
@@ -888,9 +953,14 @@ export function Deucalion() {
             Every label is a proposal with a confidence, not a verified fact. Nothing is stored on
             the server.
           </span>
-          {modelVersion && <span className="font-mono">{modelVersion}</span>}
+          {modelVersion && <span>{modelVersion}</span>}
           {reviewLog.length > 0 && (
-            <button type="button" onClick={downloadReviewLog} className="underline" style={{ color: "var(--text-muted)" }}>
+            <button
+              type="button"
+              onClick={downloadReviewLog}
+              className="hover:underline"
+              style={{ color: "var(--text-muted)" }}
+            >
               Download review log ({reviewLog.length})
             </button>
           )}
@@ -916,7 +986,7 @@ export function Deucalion() {
               ref={wipeButtonRef}
               type="button"
               onClick={() => setWipeConfirming(true)}
-              className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-sm font-medium"
+              className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-sm font-medium hover:opacity-80"
               style={{ color: "var(--urgent)", background: "var(--urgent-weak)", borderRadius: "var(--radius)" }}
             >
               <Trash size={12} weight="bold" aria-hidden />
@@ -964,7 +1034,7 @@ function WipeConfirmPanel({ onConfirm, onCancel }: { onConfirm: () => void; onCa
       <button
         type="button"
         onClick={onConfirm}
-        className="rounded px-2 py-1 text-sm font-semibold"
+        className="rounded px-2 py-1 text-sm font-semibold hover:opacity-80"
         style={{
           color: "var(--urgent)",
           background: "var(--surface-raised)",
@@ -978,7 +1048,7 @@ function WipeConfirmPanel({ onConfirm, onCancel }: { onConfirm: () => void; onCa
         ref={cancelRef}
         type="button"
         onClick={onCancel}
-        className="rounded px-2 py-1 text-sm"
+        className="rounded bg-[var(--surface-raised)] px-2 py-1 text-sm hover:bg-[var(--surface-sunken)]"
         style={{ border: "1px solid var(--line-strong)", color: "var(--text)", borderRadius: "var(--radius)" }}
       >
         Cancel
@@ -1008,12 +1078,10 @@ function PrefToggle({
       aria-pressed={on}
       aria-label={label}
       title={label}
-      className="inline-flex items-center gap-1 rounded p-1.5"
-      style={{
-        background: on ? "var(--accent-weak)" : "transparent",
-        color: on ? "var(--accent)" : "var(--text-faint)",
-        borderRadius: "var(--radius)",
-      }}
+      className={`inline-flex items-center gap-1 rounded p-1.5 ${
+        on ? "bg-[var(--accent-weak)] text-[var(--accent)] hover:opacity-80" : "text-[var(--text-faint)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-muted)]"
+      }`}
+      style={{ borderRadius: "var(--radius)" }}
     >
       {icon}
       {short && <span className="hidden text-sm sm:inline">{short}</span>}
@@ -1042,7 +1110,7 @@ function EmptyState({
         <button
           type="button"
           onClick={onCta}
-          className="rounded px-3 py-1.5 text-sm"
+          className="rounded bg-[var(--surface-raised)] px-3 py-1.5 text-sm hover:bg-[var(--surface-sunken)]"
           style={{ border: "1px solid var(--line-strong)", color: "var(--text)", borderRadius: "var(--radius)" }}
         >
           {ctaLabel}
@@ -1076,7 +1144,7 @@ function FiltersSidebar(props: {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls="filters-panel"
-        className="w-full px-4 py-2 text-left text-sm font-medium lg:hidden"
+        className="w-full px-4 py-2 text-left text-sm font-medium hover:bg-[var(--surface-sunken)] lg:hidden"
         style={{ color: "var(--text)" }}
       >
         {open ? "Hide filters" : "Filters"}
@@ -1115,8 +1183,8 @@ function FilterPanel({
         <h2 id="filters-heading" className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
           Filter
         </h2>
-        <span className="font-mono text-sm" style={{ color: "var(--text-faint)" }} aria-live="polite">
-          {count(visibleCount)} of {count(relevantCount)}
+        <span className="tabular-nums text-sm" style={{ color: "var(--text-muted)" }} aria-live="polite">
+          {count(visibleCount)} of {count(relevantCount)} shown
         </span>
       </div>
 
@@ -1126,10 +1194,12 @@ function FilterPanel({
         </label>
         <input
           id="q"
+          name="q"
           type="search"
+          autoComplete="off"
           value={filters.query}
           onChange={(e) => setFilters((f) => ({ ...f, query: e.target.value }))}
-          placeholder="Search text"
+          placeholder="Search posts…"
           className="w-full rounded px-2 py-1 text-sm"
           style={{
             background: "var(--surface-raised)",
@@ -1161,7 +1231,7 @@ function FilterPanel({
       <div>
         <label htmlFor="conf" className="mb-1 block text-sm" style={{ color: "var(--text-muted)" }}>
           Minimum relevance confidence:{" "}
-          <span className="font-mono" style={{ color: "var(--text)" }}>
+          <span className="tabular-nums" style={{ color: "var(--text)" }}>
             {pct(filters.minConfidence)}
           </span>
         </label>
@@ -1261,9 +1331,9 @@ function BriefPanel({
   };
 
   return (
-    <section aria-labelledby="brief-heading" className="flex flex-col gap-2">
-      <h2 id="brief-heading" className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>
-        Situation
+    <section aria-labelledby="summary-heading" className="flex flex-col gap-4">
+      <h2 id="summary-heading" className="text-lg font-semibold" style={{ color: "var(--text)" }}>
+        Summary
       </h2>
 
       {!brief ? (
@@ -1271,16 +1341,16 @@ function BriefPanel({
           <button
             type="button"
             onClick={() => onSummarise(false)}
-            className="rounded px-2 py-1.5 text-sm"
-            style={{ border: "1px solid var(--line-strong)", color: "var(--text)", borderRadius: "var(--radius)" }}
+            className="rounded px-3 py-1.5 text-sm font-medium hover:bg-[var(--accent-hover)]"
+            style={{ background: "var(--accent)", color: "var(--accent-text)", borderRadius: "var(--radius)" }}
           >
-            Summarise (local, instant)
+            Summarise
           </button>
           <button
             type="button"
             onClick={() => onSummarise(true)}
-            className="rounded px-2 py-1.5 text-sm"
-            style={{ border: "1px solid var(--line-strong)", color: "var(--text-muted)", borderRadius: "var(--radius)" }}
+            className="rounded border border-[var(--line-strong)] bg-[var(--surface-raised)] px-2 py-1.5 text-sm hover:bg-[var(--surface-sunken)]"
+            style={{ color: "var(--text-muted)", borderRadius: "var(--radius)" }}
             title="Also asks a language model to write a narrative. Every sentence must cite the records it came from, or it is dropped."
           >
             Summarise with narrative
@@ -1298,8 +1368,8 @@ function BriefPanel({
                 type="button"
                 onClick={() => setPlain((v) => !v)}
                 aria-pressed={plain}
-                className="rounded px-2 py-1 text-sm"
-                style={{ border: "1px solid var(--line)", color: "var(--text-muted)", borderRadius: "var(--radius)" }}
+                className="rounded border border-[var(--line-strong)] bg-[var(--surface-raised)] px-2 py-1 text-sm hover:bg-[var(--surface-sunken)]"
+                style={{ color: "var(--text-muted)", borderRadius: "var(--radius)" }}
               >
                 {plain ? "Full wording" : "Plain language"}
               </button>
@@ -1307,88 +1377,110 @@ function BriefPanel({
             <button
               type="button"
               onClick={speak}
-              className="rounded px-2 py-1 text-sm"
-              style={{ border: "1px solid var(--line)", color: "var(--text-muted)", borderRadius: "var(--radius)" }}
+              className="rounded border border-[var(--line-strong)] bg-[var(--surface-raised)] px-2 py-1 text-sm hover:bg-[var(--surface-sunken)]"
+              style={{ color: "var(--text-muted)", borderRadius: "var(--radius)" }}
             >
               Read aloud
             </button>
           </div>
 
           {brief.narrative?.length ? (
-            <ul className="flex flex-col gap-1.5">
-              {brief.narrative.map((sentence, i) => (
-                <li key={i} className="text-sm leading-relaxed" style={{ color: "var(--text)" }}>
-                  {sentence.sentence}{" "}
-                  {/* The citations are the audit claim, so they are visible, focusable chips that
-                      open the post, not a hover-only title. */}
-                  <span className="inline-flex flex-wrap gap-1 align-middle">
-                    {sentence.citedRecordIds.map((id) => (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => onSelectRecord(id)}
-                        aria-label={`Open cited post ${id}`}
-                        className="rounded px-1 font-mono text-sm"
-                        style={{ border: "1px solid var(--line-strong)", color: "var(--accent)" }}
-                      >
-                        {id}
-                      </button>
-                    ))}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <div className="flex flex-col gap-2">
+              <h3 className="text-base font-semibold" style={{ color: "var(--text)" }}>
+                What the posts describe
+              </h3>
+              <ul className="flex flex-col gap-1.5">
+                {brief.narrative.map((sentence, i) => (
+                  <li key={i} className="text-sm leading-relaxed" style={{ color: "var(--text)" }}>
+                    {sentence.sentence}{" "}
+                    {/* The citations are the audit claim, so they are visible, focusable chips that
+                        open the post, not a hover-only title. */}
+                    <span className="inline-flex flex-wrap gap-1 align-middle">
+                      {sentence.citedRecordIds.map((id) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => onSelectRecord(id)}
+                          aria-label={`Open cited post ${id}`}
+                          className="rounded border border-[var(--line-strong)] px-1 font-mono text-sm hover:bg-[var(--surface-sunken)]"
+                          style={{ color: "var(--accent)" }}
+                        >
+                          {id}
+                        </button>
+                      ))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : null}
 
           {clusters.length > 0 && (
-            <ul className="flex flex-col gap-1">
-              {clusters.map((cluster) => (
-                <li key={cluster.id}>
-                  {/* A theme opens its posts in Reports; it was static text before. */}
-                  <button
-                    type="button"
-                    onClick={() => onPickCluster(cluster)}
-                    aria-label={`Show the ${count(cluster.size)} posts about ${cluster.label}`}
-                    className="flex w-full items-baseline justify-between gap-2 rounded px-1 py-0.5 text-left text-sm hover:underline"
-                  >
-                    <span style={{ color: "var(--text)" }}>
-                      {cluster.label}
-                      {cluster.terms?.length ? (
-                        <span style={{ color: "var(--text-faint)" }}>: {cluster.terms.join(", ")}</span>
-                      ) : null}
-                    </span>
-                    <span className="font-mono" style={{ color: "var(--text-muted)" }}>
-                      {count(cluster.size)}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <div className="flex flex-col gap-2">
+              <h3 className="text-base font-semibold" style={{ color: "var(--text)" }}>
+                Themes
+              </h3>
+              <ul className="flex flex-col gap-1">
+                {clusters.map((cluster) => (
+                  <li key={cluster.id}>
+                    {/* A theme opens its posts in Reports; it was static text before. */}
+                    <button
+                      type="button"
+                      onClick={() => onPickCluster(cluster)}
+                      aria-label={`Show the ${count(cluster.size)} posts about ${cluster.label}`}
+                      className="flex w-full items-baseline justify-between gap-2 rounded px-1 py-0.5 text-left text-sm hover:underline"
+                    >
+                      <span style={{ color: "var(--text)" }}>
+                        {cluster.label}
+                        {cluster.terms?.length ? (
+                          <span style={{ color: "var(--text-faint)" }}>: {cluster.terms.join(", ")}</span>
+                        ) : null}
+                      </span>
+                      <span className="tabular-nums" style={{ color: "var(--text-muted)" }}>
+                        {count(cluster.size)}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </>
       )}
 
-      <div className="mt-1 flex flex-wrap gap-1.5">
-        {(["geojson", "csv", "brief", "sms"] as const).map((format) => (
-          <button
-            key={format}
-            type="button"
-            onClick={() => onDownload(format)}
-            className="rounded px-2 py-1 text-sm uppercase"
-            style={{ border: "1px solid var(--line)", color: "var(--text-muted)", borderRadius: "var(--radius)" }}
-            title={
-              format === "geojson"
-                ? "A GeoJSON layer, ready to open in MapAki or any GIS."
-                : format === "csv"
-                  ? "Flat table with labels and confidences. Safe to open in Excel."
-                  : format === "brief"
-                    ? "Printable situation brief."
-                    : "Short digest sized for a text message."
-            }
-          >
-            {format}
-          </button>
-        ))}
+      <div className="flex flex-col gap-2">
+        <h3 className="text-base font-semibold" style={{ color: "var(--text)" }}>
+          Download
+        </h3>
+        <div className="flex flex-wrap gap-1.5">
+          {(
+            [
+              {
+                format: "geojson",
+                label: "GeoJSON for MapAki",
+                hint: "A GeoJSON layer, ready to open in MapAki or any GIS.",
+              },
+              {
+                format: "csv",
+                label: "CSV",
+                hint: "Flat table with labels and confidences. Safe to open in Excel.",
+              },
+              { format: "brief", label: "Brief (Markdown)", hint: "Printable situation brief." },
+              { format: "sms", label: "SMS digest", hint: "Short digest sized for a text message." },
+            ] as const
+          ).map(({ format, label, hint }) => (
+            <button
+              key={format}
+              type="button"
+              onClick={() => onDownload(format)}
+              className="rounded border border-[var(--line-strong)] bg-[var(--surface-raised)] px-2 py-1 text-sm hover:bg-[var(--surface-sunken)]"
+              style={{ color: "var(--text-muted)", borderRadius: "var(--radius)" }}
+              title={hint}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
     </section>
   );

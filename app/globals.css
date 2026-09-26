@@ -71,6 +71,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --surface: oklch(21% 0.012 255);
     --surface-sunken: oklch(17% 0.012 255);
     --surface-raised: oklch(25% 0.013 255);
@@ -104,7 +105,12 @@
   }
 }
 
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --surface: oklch(21% 0.012 255);
   --surface-sunken: oklch(17% 0.012 255);
   --surface-raised: oklch(25% 0.013 255);
@@ -192,6 +198,17 @@ body {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 3px;
+}
+
+/* Larger touch targets shouldn't come with a tap flash or a delayed double-tap zoom. */
+button,
+a,
+input,
+select,
+summary,
+[role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Motion is already near-zero. Under reduced-motion it is exactly zero. */

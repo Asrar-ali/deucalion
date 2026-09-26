@@ -78,7 +78,7 @@ export default function AccessibilityPage() {
           <p>
             The map has a genuine text equivalent, not a lesser fallback: a sortable table with
             the same filters and the same data. An announcement region reports result counts as
-            filters change, for example, forty two reports match and eighteen are mapped. Every
+            filters change, for example, 42 reports match and 18 are mapped. Every
             image carries alt text, generated automatically for uploaded photos and left empty
             for decorative art. Progress during classification is announced as it happens, not
             only shown as an animation.
@@ -93,7 +93,7 @@ export default function AccessibilityPage() {
             contrast and interface elements hold 3 to 1, in both the light and dark themes. The
             category palette is chosen to still separate under the common forms of colour
             blindness, and severity uses a plain light to dark ramp rather than a red to green
-            scale, which is exactly the scale that fails for about eight percent of men. The app
+            scale, which is exactly the scale that fails for about 8% of men. The app
             also honours a system preference for higher contrast and for Windows high contrast
             mode.
           </p>
@@ -103,9 +103,10 @@ export default function AccessibilityPage() {
           <h3 className="text-sm font-medium">Motion, zoom and layout</h3>
           <p>
             With reduced motion requested by the system, marker animation stops and transitions
-            are limited to opacity. Text can be zoomed to two hundred percent with nothing clipped
-            or lost. The layout holds at phone width with a sixteen pixel gutter and no sideways
-            scrolling, and a large touch target mode is available for gloves and outdoor use.
+            are limited to opacity. Text can be zoomed to 200% with nothing clipped
+            or lost. The layout holds at phone width with a 16px gutter and no sideways
+            scrolling. Larger touch targets for gloves and outdoor use are wired into the
+            stylesheet, but there is no switch in the interface yet to turn that mode on.
           </p>
         </div>
 
@@ -113,8 +114,8 @@ export default function AccessibilityPage() {
           <h3 className="text-sm font-medium">Forms and errors</h3>
           <p>
             An upload error names the row and says what happened and what we did about it, for
-            example row four hundred twelve had an empty text column and was skipped, eight
-            thousand and twenty three rows loaded. It never just says the file was invalid. Every
+            example row 412 had an empty text column and was skipped, 8,023 rows loaded. It never
+            just says the file was invalid. Every
             input has a real label, not a placeholder standing in for one, and the page carries a
             meaningful message for anyone without JavaScript enabled.
           </p>
@@ -124,7 +125,7 @@ export default function AccessibilityPage() {
           <h3 className="text-sm font-medium">Type</h3>
           <p>
             Atkinson Hyperlegible, the typeface the Braille Institute designed for low vision, is
-            offered as a free toggle. Body text never drops below fourteen pixels, and we do not
+            offered as a free toggle. Body text never drops below 14px, and we do not
             use justified text.
           </p>
         </div>
@@ -253,14 +254,14 @@ const CRISIS_FEATURES: Array<{ feature: string; why: string }> = [
   },
   {
     feature: "Plain-language mode",
-    why: "Rewrites the situation brief at roughly a grade six reading level.",
+    why: "Rewrites the situation brief at roughly a grade 6 reading level.",
   },
   {
     feature: "Print and short text export",
     why: "For anyone without a smartphone, and for a printed copy on the band office whiteboard.",
   },
   {
-    feature: "English and French",
-    why: "Both official languages are supported throughout.",
+    feature: "English only, for now",
+    why: "The interface ships in English only; French is planned but not built yet. Anishinaabemowin and Oji-Cree labels will ship only once a fluent speaker from a partner community has validated them (see below).",
   },
 ];
