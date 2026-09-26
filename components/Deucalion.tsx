@@ -48,6 +48,7 @@ import { Intake, type IngestResult } from "./Intake";
 import { RecordsTable, type SortKey } from "./RecordsTable";
 import { RecordDetail, type ReviewAction } from "./RecordDetail";
 import { AskPanel } from "./AskPanel";
+import { BackToTop } from "./BackToTop";
 
 const HAZARD_NOUN: Record<string, string> = {
   flood: "the flood",
@@ -823,7 +824,7 @@ export function Deucalion() {
         ))}
       </nav>
 
-      <main id="main" className="flex min-w-0 flex-1 flex-col">
+      <main id="main" tabIndex={-1} className="flex min-w-0 flex-1 flex-col outline-none">
         {view === "data" && (
           <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6">
             <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
@@ -1071,6 +1072,7 @@ export function Deucalion() {
           </div>
         )}
       </main>
+      <BackToTop focusRef={headingRef} />
 
       <footer
         className="flex flex-col gap-2 border-t px-4 py-2 text-sm"

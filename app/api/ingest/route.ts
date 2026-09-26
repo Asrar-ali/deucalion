@@ -178,6 +178,16 @@ export async function POST(request: Request) {
     if (n && n > 1) r.duplicateCount = n;
   }
 
+  if (!deduped.length) {
+    return Response.json(
+      {
+        error: "No readable posts found in this file. Is it a text CSV with a column of post text?",
+        detail: rejected.length ? rejected.slice(0, 20) : undefined,
+      },
+      { status: 400 },
+    );
+  }
+
   const profileTexts = deduped.map((r) => r.text).filter(Boolean);
   const profileOpts = { knownPlaces: knownPlaceAliases() };
   // Detection first, then focus. A single-event corpus passes through untouched. A mixed one
