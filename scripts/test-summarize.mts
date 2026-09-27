@@ -17,7 +17,7 @@ import {
 } from "../lib/summarize";
 import type { FloodRecord } from "../lib/types";
 
-// Minimal .env.local loader, same as scripts/smoke.mjs and scripts/test-routes.mts.
+// Minimal .env.local loader, same as scripts/test-routes.mts.
 for (const line of readFileSync(new URL("../.env.local", import.meta.url), "utf8").split(/\r?\n/)) {
   const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");

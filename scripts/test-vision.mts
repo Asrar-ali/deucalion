@@ -13,7 +13,7 @@
 import { readFileSync } from "node:fs";
 import { deflateSync } from "node:zlib";
 
-// Same minimal .env.local loader used by scripts/smoke.mjs and scripts/test-routes.mts.
+// Same minimal .env.local loader used by scripts/test-routes.mts.
 try {
   const env = readFileSync(new URL("../.env.local", import.meta.url), "utf8");
   for (const line of env.split(/\r?\n/)) {
