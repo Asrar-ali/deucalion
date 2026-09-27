@@ -1,8 +1,12 @@
 "use client";
 
 /**
- * MapLibre map. No access token, no Mapbox account: basemap tiles come from CARTO's free
- * GL styles, and low-bandwidth mode drops tiles entirely.
+ * MapLibre map. No access token, no account: streets come from OpenFreeMap, satellite imagery
+ * from Esri's public World Imagery tiles, and low-bandwidth mode drops tiles entirely.
+ *
+ * Every gazetteer placement carries a precision halo: a circle drawn in metres, as wide as the
+ * uncertainty in where the post is. A post that only says "Calgary" sits on the city centre;
+ * the halo says "somewhere in here", so the dot never reads as a pin on one street.
  *
  * Points render as a clustered GeoJSON layer rather than DOM markers. Four thousand DOM
  * markers locks the tab; a vector layer does not care. The keyboard path to every point is
@@ -14,6 +18,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 // Namespace import: maplibre-gl ships no default export, so `import maplibregl from` fails.
 import * as maplibregl from "maplibre-gl";
 import type { GeoJSONSource, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
+import { GlobeHemisphereWest, MapTrifold } from "@phosphor-icons/react/dist/ssr";
 
 import type { Category, FloodRecord } from "../lib/types";
 import { communityRollup } from "../lib/geoparse";
@@ -27,8 +32,42 @@ if (typeof window !== "undefined") {
   maplibregl.setWorkerUrl(new URL("/maplibre/maplibre-gl-worker.mjs", window.location.origin).href);
 }
 
-const CARTO_LIGHT = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
-const CARTO_DARK = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+export type Basemap = "streets" | "satellite";
+
+const STREETS_LIGHT = "https://tiles.openfreemap.org/styles/liberty";
+const STREETS_DARK = "https://tiles.openfreemap.org/styles/dark";
+
+// Every style shares one glyph server, so our own label layers can name fonts it actually has.
+// A font stack the server lacks 404s and the labels silently vanish.
+const GLYPHS = "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf";
+const FONT_REGULAR = ["Noto Sans Regular"];
+const FONT_BOLD = ["Noto Sans Bold"];
+
+const SATELLITE_STYLE: StyleSpecification = {
+  version: 8,
+  glyphs: GLYPHS,
+  sources: {
+    imagery: {
+      type: "raster",
+      tileSize: 256,
+      maxzoom: 19,
+      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+      attribution: "Imagery © Esri, Maxar, Earthstar Geographics",
+    },
+    places: {
+      type: "raster",
+      tileSize: 256,
+      maxzoom: 19,
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+      ],
+    },
+  },
+  layers: [
+    { id: "imagery", type: "raster", source: "imagery" },
+    { id: "places", type: "raster", source: "places" },
+  ],
+};
 
 /**
  * Tileless style for low-bandwidth mode. A fly-in community on a degraded satellite link
@@ -38,8 +77,70 @@ const BLANK_STYLE: StyleSpecification = {
   version: 8,
   sources: {},
   layers: [{ id: "bg", type: "background", paint: { "background-color": "#1b1f26" } }],
-  glyphs: "https://tiles.basemaps.cartocdn.com/fonts/{fontstack}/{range}.pbf",
+  glyphs: GLYPHS,
 };
+
+function styleFor(basemap: Basemap, dark: boolean, lowBandwidth: boolean): string | StyleSpecification {
+  if (lowBandwidth) return BLANK_STYLE;
+  if (basemap === "satellite") return SATELLITE_STYLE;
+  return dark ? STREETS_DARK : STREETS_LIGHT;
+}
+
+/**
+ * How far from the drawn point a gazetteer placement may really be, in metres, by place kind.
+ * Roughly the radius of a typical place of that kind in Alberta. Provided and EXIF coordinates
+ * are exact and get no halo.
+ */
+const UNCERTAINTY_M: Record<string, number> = {
+  landmark: 250,
+  road: 600,
+  neighbourhood: 1500,
+  hamlet: 1500,
+  river: 2000,
+  town: 3000,
+  reserve: 4000,
+  township: 5000,
+  city: 8000,
+  // Drawn as a wide circle to show "somewhere around here"; the copy never quotes this figure.
+  region: 25000,
+};
+
+function uncertaintyMeters(method: string, kind?: string): number {
+  if (method !== "gazetteer") return 0;
+  return UNCERTAINTY_M[kind ?? ""] ?? 3000;
+}
+
+function formatDistance(meters: number): string {
+  return meters >= 1000 ? `${meters / 1000} km` : `${meters} m`;
+}
+
+/** "the city centre", "the road", for copy that says where a stacked post was drawn. */
+function placeCentre(kind: string): string {
+  if (kind === "road" || kind === "river") return `a point on the ${kind}`;
+  if (kind === "landmark") return "the landmark";
+  return kind ? `the centre of the ${kind}` : "the place's centre";
+}
+
+// A circle radius in metres, as pixels: at zoom 20 one pixel is 0.1493 m at the equator,
+// scaled by cos(latitude), and each zoom level down halves it.
+const METRE_RADIUS = [
+  "interpolate",
+  ["exponential", 2],
+  ["zoom"],
+  0,
+  ["/", ["get", "r20"], 1048576],
+  20,
+  ["get", "r20"],
+] as unknown as maplibregl.ExpressionSpecification;
+
+/** "1.2k" above a thousand, so a stack count fits inside its dot. */
+const ABBREVIATED = (field: maplibregl.ExpressionSpecification) =>
+  [
+    "case",
+    [">=", field, 1000],
+    ["concat", ["to-string", ["/", ["round", ["/", field, 100]], 10]], "k"],
+    ["to-string", field],
+  ] as unknown as maplibregl.ExpressionSpecification;
 
 /** Category colours as literal hex, because MapLibre paint expressions cannot read CSS vars. */
 const CATEGORY_COLOR: Record<Category, string> = {
@@ -159,6 +260,9 @@ interface Point {
   confidence: number;
   exact: boolean;
   label: string;
+  kind: string;
+  /** Uncertainty radius in metres; 0 for exact coordinates. */
+  meters: number;
 }
 
 function toPoints(records: FloodRecord[]): Point[] {
@@ -178,29 +282,161 @@ function toPoints(records: FloodRecord[]): Point[] {
         confidence: r.labels.relevant?.confidence ?? 0,
         exact: p.method !== "gazetteer",
         label: p.name,
+        kind: p.kind ?? "",
+        meters: uncertaintyMeters(p.method, p.kind),
       });
     }
   }
   return points;
 }
 
+/**
+ * One feature per distinct spot. Posts that name only a city all share its centroid; drawn one
+ * by one they are a single dot at every zoom (past the cluster zoom, 192 Manila posts looked
+ * like one). Merged, the dot carries the count and a click lists them.
+ */
 function toGeoJson(points: Point[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
-  return {
-    type: "FeatureCollection",
-    features: points.map((p) => ({
+  const stacks = new Map<string, Point[]>();
+  for (const p of points) {
+    const key = `${p.lon.toFixed(5)},${p.lat.toFixed(5)}`;
+    const stack = stacks.get(key);
+    if (stack) stack.push(p);
+    else stacks.set(key, [p]);
+  }
+  const features: GeoJSON.Feature<GeoJSON.Point>[] = [];
+  for (const stack of stacks.values()) {
+    const first = stack[0];
+    const ids = [...new Set(stack.map((p) => p.id))];
+    // The stack takes the colour most of its posts have.
+    const tally = new Map<string, number>();
+    for (const p of stack) tally.set(p.category, (tally.get(p.category) ?? 0) + 1);
+    const category = [...tally.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    const meters = Math.min(...stack.map((p) => p.meters));
+    features.push({
       type: "Feature",
       // RFC 7946 order. Reversing these silently relocates Calgary to Kazakhstan.
-      geometry: { type: "Point", coordinates: [p.lon, p.lat] },
+      geometry: { type: "Point", coordinates: [first.lon, first.lat] },
       properties: {
-        id: p.id,
-        category: p.category,
-        confidence: p.confidence,
-        exact: p.exact,
-        label: p.label,
+        id: first.id,
+        // Pipe-delimited so a filter can test membership with a plain substring match.
+        ids: `|${ids.join("|")}|`,
+        n: ids.length,
+        category,
+        confidence: Math.max(...stack.map((p) => p.confidence)),
+        exact: stack.every((p) => p.exact),
+        label: first.label,
+        kind: first.kind,
+        meters,
+        r20: meters / (0.1493 * Math.cos((first.lat * Math.PI) / 180)),
       },
-    })),
-  };
+    });
+  }
+  return { type: "FeatureCollection", features };
 }
+
+/** Where a post was drawn and how precise that is, in plain words. */
+function precisionText(exact: boolean, kind: string, meters: number): string {
+  if (exact || meters === 0) return "Exact location, from coordinates in the post";
+  // A region can be a whole province; no single distance describes that honestly.
+  if (kind === "region") return "Names only a region, so it could be anywhere in it";
+  return `Placed at ${placeCentre(kind)}, accurate to about ${formatDistance(meters)}`;
+}
+
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+// Popup bodies are built with textContent, never HTML strings: post text is untrusted.
+function hoverContent(props: Record<string, unknown>): HTMLElement {
+  const n = Number(props.n);
+  const box = el("div", "map-tip");
+  box.append(el("strong", "", n > 1 ? `${String(props.label)}, ${n} posts` : String(props.label)));
+  box.append(el("div", "", precisionText(props.exact === true, String(props.kind ?? ""), Number(props.meters))));
+  box.append(
+    el(
+      "div",
+      "map-tip-faint",
+      n > 1 ? "Click to list them" : `${Math.round(Number(props.confidence) * 100)}% sure it is about the event`,
+    ),
+  );
+  return box;
+}
+
+const STACK_LIST_MAX = 100;
+
+function stackListContent(opts: {
+  ids: string[];
+  label: string;
+  kind: string;
+  meters: number;
+  exact: boolean;
+  records: FloodRecord[];
+  onPick: (id: string) => void;
+  onClose: () => void;
+}): HTMLElement {
+  const byId = new Map(opts.records.map((r) => [r.id, r]));
+  const box = el("div", "map-stack");
+  box.setAttribute("role", "dialog");
+  box.setAttribute("aria-label", `${opts.ids.length} posts at ${opts.label}`);
+  box.append(el("h3", "map-stack-title", `${opts.ids.length} posts name ${opts.label}`));
+  box.append(el("p", "map-stack-note", `${precisionText(opts.exact, opts.kind, opts.meters)}, so they share one point.`));
+  const list = el("ul", "map-stack-list");
+  // Most urgent first, so a rescue request is not buried under a thousand comments.
+  const ranked = [...opts.ids].sort(
+    (a, b) =>
+      (byId.get(b)?.labels.severity?.value ?? 0) - (byId.get(a)?.labels.severity?.value ?? 0) ||
+      (byId.get(b)?.labels.relevant?.confidence ?? 0) - (byId.get(a)?.labels.relevant?.confidence ?? 0),
+  );
+  for (const id of ranked.slice(0, STACK_LIST_MAX)) {
+    const record = byId.get(id);
+    if (!record) continue;
+    const category = record.labels.category?.value;
+    const button = el("button", "map-stack-item");
+    button.type = "button";
+    const dot = el("span", "map-stack-dot");
+    dot.style.background = category ? CATEGORY_COLOR[category] : "#8a8f98";
+    dot.setAttribute("aria-hidden", "true");
+    const text = record.text.trim();
+    button.append(dot, el("span", "", text ? (text.length > 90 ? `${text.slice(0, 90)}…` : text) : "Photo report, no text"));
+    button.addEventListener("click", () => opts.onPick(id));
+    const item = el("li", "");
+    item.append(button);
+    list.append(item);
+  }
+  box.append(list);
+  if (opts.ids.length > STACK_LIST_MAX) {
+    box.append(el("p", "map-stack-note", `And ${opts.ids.length - STACK_LIST_MAX} more in the table below the map.`));
+  }
+  box.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      opts.onClose();
+    }
+  });
+  return box;
+}
+
+/** Matches the merged feature holding `id`, whether it is alone or part of a stack. */
+function selectedFilter(id: string | null): maplibregl.FilterSpecification {
+  return ["in", `|${id ?? "__none__"}|`, ["to-string", ["get", "ids"]]];
+}
+
+/** Same colours as CATEGORY_COLOR, as a paint expression. */
+const CATEGORY_MATCH = [
+  "match",
+  ["get", "category"],
+  "rescue_request", CATEGORY_COLOR.rescue_request,
+  "access_blocked", CATEGORY_COLOR.access_blocked,
+  "evacuation", CATEGORY_COLOR.evacuation,
+  "damage", CATEGORY_COLOR.damage,
+  "advisory", CATEGORY_COLOR.advisory,
+  "aid", CATEGORY_COLOR.aid,
+  "sentiment", CATEGORY_COLOR.sentiment,
+  "#8a8f98",
+] as unknown as maplibregl.ExpressionSpecification;
 
 export function FloodMap({
   records,
@@ -219,8 +455,14 @@ export function FloodMap({
   const map = useRef<MapLibreMap | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Session only: the app writes a single localStorage key (the prefs the wipe control clears),
+  // and a basemap choice is not worth a second one.
+  const [basemap, setBasemap] = useState<Basemap>("streets");
   // The style URL currently applied, so the swap effect only calls setStyle on a real change.
   const appliedStyle = useRef<string | StyleSpecification | null>(null);
+  // Whether the applied style is imagery or the blank dark ground, where our labels and rings
+  // must be light whatever the app theme is.
+  const darkGround = useRef(false);
 
   // Memoised: a fresh array every render re-ran the data and camera effects on every render.
   const points = useMemo(() => toPoints(records), [records]);
@@ -228,6 +470,7 @@ export function FloodMap({
   latestPoints.current = points;
   const latestRecords = useRef(records);
   latestRecords.current = records;
+  const pannedTo = useRef<string | null>(null);
 
   // Whether the point set has ever been non-empty, so the initial-fit effect fires once per
   // empty-to-loaded transition rather than on every filter change.
@@ -254,7 +497,7 @@ export function FloodMap({
     try {
       instance = new maplibregl.Map({
         container: container.current,
-        style: lowBandwidth ? BLANK_STYLE : dark ? CARTO_DARK : CARTO_LIGHT,
+        style: styleFor(basemap, dark, lowBandwidth),
         center: [-114.07, 51.04],
         zoom: 5,
         attributionControl: { compact: true },
@@ -267,6 +510,11 @@ export function FloodMap({
     }
 
     instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    // Fullscreen the wrapper, not the canvas, so the basemap switcher and key come along.
+    instance.addControl(
+      new maplibregl.FullscreenControl({ container: container.current.parentElement ?? undefined }),
+      "top-right",
+    );
     instance.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
     // MapLibre's own keyboard handler pans/zooms on these same arrow keys; our keyboard path
@@ -277,15 +525,17 @@ export function FloodMap({
       if ((e as { originalEvent?: unknown }).originalEvent) userMoved.current = true;
     });
 
-    appliedStyle.current = lowBandwidth ? BLANK_STYLE : dark ? CARTO_DARK : CARTO_LIGHT;
+    appliedStyle.current = styleFor(basemap, dark, lowBandwidth);
+    darkGround.current = lowBandwidth || basemap === "satellite";
 
     // Every setStyle drops our sources and layers, and "load" fires only once, so rebuild on
     // "style.load", which fires for the initial style and after every swap.
     instance.on("style.load", () => {
       const accentColor = cssVar("--accent", "#3f6fd6");
       const surfaceRaisedColor = cssVar("--surface-raised", "#ffffff");
-      const ringColor = cssVar("--text", "#333");
-      const labelColor = cssVar("--text", "#222");
+      const labelHaloColor = darkGround.current ? "rgba(12, 16, 22, 0.85)" : surfaceRaisedColor;
+      const ringColor = darkGround.current ? "#f4f6f8" : cssVar("--text", "#333");
+      const labelColor = darkGround.current ? "#f4f6f8" : cssVar("--text", "#222");
 
       // Added first so it paints beneath the report layers below.
       instance.addSource("reserves", { type: "geojson", data: reservesGeoJson(reserveCounts.current) });
@@ -312,7 +562,7 @@ export function FloodMap({
         filter: ["any", [">", ["get", "posts"], 0], [">=", ["zoom"], 8]],
         layout: {
           "text-field": ["get", "text"],
-          "text-font": ["Montserrat Medium", "Open Sans Bold", "Noto Sans Regular"],
+          "text-font": FONT_REGULAR,
           "text-size": ["interpolate", ["linear"], ["zoom"], 4, 10, 9, 12],
           "text-anchor": "top",
           "text-max-width": 8,
@@ -322,7 +572,7 @@ export function FloodMap({
         },
         paint: {
           "text-color": labelColor,
-          "text-halo-color": surfaceRaisedColor,
+          "text-halo-color": labelHaloColor,
           "text-halo-width": 1.5,
         },
       });
@@ -333,6 +583,26 @@ export function FloodMap({
         cluster: true,
         clusterRadius: 45,
         clusterMaxZoom: 11,
+        // Features are already merged per spot, so a cluster's size is the sum of their posts,
+        // not the number of features.
+        clusterProperties: { total: ["+", ["get", "n"]] },
+      });
+
+      // Beneath everything else of ours: the halo is context, the dot is the post.
+      instance.addLayer({
+        id: "halos",
+        type: "circle",
+        source: "reports",
+        filter: ["all", ["!", ["has", "point_count"]], [">", ["get", "r20"], 0]],
+        paint: {
+          "circle-radius": METRE_RADIUS,
+          "circle-color": CATEGORY_MATCH,
+          "circle-opacity": darkGround.current ? 0.2 : 0.13,
+          "circle-stroke-color": CATEGORY_MATCH,
+          "circle-stroke-opacity": darkGround.current ? 0.8 : 0.55,
+          "circle-stroke-width": 1,
+          "circle-pitch-alignment": "map",
+        },
       });
 
       instance.addLayer({
@@ -342,10 +612,10 @@ export function FloodMap({
         filter: ["has", "point_count"],
         paint: {
           "circle-color": accentColor,
-          "circle-opacity": 0.75,
-          "circle-radius": ["step", ["get", "point_count"], 14, 25, 20, 100, 28],
+          "circle-opacity": 0.8,
+          "circle-radius": ["step", ["get", "total"], 14, 25, 20, 100, 26, 1000, 32],
           "circle-stroke-width": 1.5,
-          "circle-stroke-color": surfaceRaisedColor,
+          "circle-stroke-color": darkGround.current ? "#ffffff" : surfaceRaisedColor,
         },
       });
 
@@ -355,10 +625,12 @@ export function FloodMap({
         source: "reports",
         filter: ["has", "point_count"],
         layout: {
-          "text-field": ["get", "point_count_abbreviated"],
+          "text-field": ABBREVIATED(["get", "total"] as maplibregl.ExpressionSpecification),
+          "text-font": FONT_BOLD,
           "text-size": 11,
+          "text-allow-overlap": true,
         },
-        paint: { "text-color": surfaceRaisedColor },
+        paint: { "text-color": "#ffffff" },
       });
 
       instance.addLayer({
@@ -367,40 +639,47 @@ export function FloodMap({
         source: "reports",
         filter: ["!", ["has", "point_count"]],
         paint: {
-          // Written out literally rather than spread from CATEGORY_ORDER: MapLibre types a
-          // match expression as a fixed-arity tuple, so a spread cannot satisfy it.
-          "circle-color": [
-            "match",
-            ["get", "category"],
-            "rescue_request", CATEGORY_COLOR.rescue_request,
-            "access_blocked", CATEGORY_COLOR.access_blocked,
-            "evacuation", CATEGORY_COLOR.evacuation,
-            "damage", CATEGORY_COLOR.damage,
-            "advisory", CATEGORY_COLOR.advisory,
-            "aid", CATEGORY_COLOR.aid,
-            "sentiment", CATEGORY_COLOR.sentiment,
-            "#8a8f98",
+          "circle-color": CATEGORY_MATCH,
+          // A stack grows with its count. A single post's radius encodes confidence, so a
+          // low-confidence placement is visibly smaller rather than looking as certain.
+          "circle-radius": [
+            "case",
+            [">", ["get", "n"], 1],
+            ["interpolate", ["linear"], ["get", "n"], 2, 10, 20, 13, 200, 18],
+            ["interpolate", ["linear"], ["get", "confidence"], 0, 4, 1, 8],
           ],
-          // Radius encodes confidence, so a low-confidence placement is visibly smaller
-          // rather than looking as certain as an exact one.
-          "circle-radius": ["interpolate", ["linear"], ["get", "confidence"], 0, 4, 1, 8],
-          "circle-opacity": 0.85,
+          "circle-opacity": 0.9,
           // A solid ring means exact coordinates; a thin ring means an inferred place name.
-          "circle-stroke-width": ["case", ["get", "exact"], 2.5, 1],
+          "circle-stroke-width": ["case", ["get", "exact"], 2.5, 1.2],
           "circle-stroke-color": "#ffffff",
         },
+      });
+
+      instance.addLayer({
+        id: "stack-count",
+        type: "symbol",
+        source: "reports",
+        filter: ["all", ["!", ["has", "point_count"]], [">", ["get", "n"], 1]],
+        layout: {
+          "text-field": ABBREVIATED(["get", "n"] as maplibregl.ExpressionSpecification),
+          "text-font": FONT_BOLD,
+          "text-size": 11,
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: { "text-color": "#ffffff", "text-halo-color": "rgba(0, 0, 0, 0.35)", "text-halo-width": 1 },
       });
 
       instance.addLayer({
         id: "selected",
         type: "circle",
         source: "reports",
-        filter: ["==", ["get", "id"], "__none__"],
+        filter: selectedFilter(null),
         paint: {
           "circle-color": "transparent",
-          "circle-radius": 14,
+          "circle-radius": ["case", [">", ["get", "n"], 1], 22, 14],
           "circle-stroke-width": 2.5,
-          "circle-stroke-color": accentColor,
+          "circle-stroke-color": darkGround.current ? "#ffffff" : accentColor,
         },
       });
 
@@ -410,9 +689,46 @@ export function FloodMap({
 
     // Handlers are bound by layer id, so they survive style swaps. Bind them once.
     {
+      // Tooltips must not be hover-only: this also fires on tap, and the table carries the
+      // same information for keyboard and screen-reader users.
+      const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, maxWidth: "260px" });
+
+      // A stack opens a list of its posts; one post opens directly.
+      const stackPopup = new maplibregl.Popup({ closeButton: true, closeOnClick: true, maxWidth: "320px" });
       instance.on("click", "points", (e) => {
-        const id = e.features?.[0]?.properties?.id;
-        if (typeof id === "string") onSelect(id);
+        const feature = e.features?.[0];
+        const props = feature?.properties;
+        if (!props) return;
+        const ids = String(props.ids ?? "").split("|").filter(Boolean);
+        if (ids.length <= 1) {
+          if (typeof props.id === "string") onSelect(props.id);
+          return;
+        }
+        popup.remove();
+        const close = () => {
+          stackPopup.remove();
+          container.current?.focus();
+        };
+        stackPopup
+          .setLngLat((feature!.geometry as GeoJSON.Point).coordinates as [number, number])
+          .setDOMContent(
+            stackListContent({
+              ids,
+              label: String(props.label),
+              kind: String(props.kind ?? ""),
+              meters: Number(props.meters),
+              exact: props.exact === true,
+              records: latestRecords.current,
+              onPick: (id) => {
+                stackPopup.remove();
+                onSelect(id);
+              },
+              onClose: close,
+            }),
+          )
+          .addTo(instance);
+        // Keyboard and screen-reader users land in the list, not back on the canvas.
+        stackPopup.getElement()?.querySelector<HTMLButtonElement>(".map-stack-item")?.focus({ preventScroll: true });
       });
 
       instance.on("click", "clusters", async (e) => {
@@ -427,17 +743,20 @@ export function FloodMap({
         });
       });
 
-      // Tooltips must not be hover-only: this also fires on tap, and the table carries the
-      // same information for keyboard and screen-reader users.
-      const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false });
       instance.on("mouseenter", "points", (e) => {
         instance.getCanvas().style.cursor = "pointer";
         const props = e.features?.[0]?.properties;
-        if (!props) return;
+        if (!props || stackPopup.isOpen()) return;
         popup
           .setLngLat((e.features![0].geometry as GeoJSON.Point).coordinates as [number, number])
-          .setText(`${String(props.label)}, ${Math.round(Number(props.confidence) * 100)}% confidence`)
+          .setDOMContent(hoverContent(props))
           .addTo(instance);
+      });
+      instance.on("mouseenter", "clusters", () => {
+        instance.getCanvas().style.cursor = "pointer";
+      });
+      instance.on("mouseleave", "clusters", () => {
+        instance.getCanvas().style.cursor = "";
       });
       instance.on("mouseleave", "points", () => {
         instance.getCanvas().style.cursor = "";
@@ -461,18 +780,20 @@ export function FloodMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Swap the basemap when the theme or bandwidth mode changes, keeping camera and data.
+  // Swap the basemap when the choice, theme or bandwidth mode changes, keeping camera and data.
   useEffect(() => {
     const instance = map.current;
     if (!instance) return;
-    const next = lowBandwidth ? BLANK_STYLE : dark ? CARTO_DARK : CARTO_LIGHT;
+    const next = styleFor(basemap, dark, lowBandwidth);
     if (appliedStyle.current === next) return;
     appliedStyle.current = next;
+    darkGround.current = lowBandwidth || basemap === "satellite";
     // diff:false drops our sources and layers; the style.load handler rebuilds them. Until it
     // does, ready is false so no effect touches a layer that does not exist.
     setReady(false);
+    setFailed(false);
     instance.setStyle(next, { diff: false });
-  }, [dark, lowBandwidth]);
+  }, [basemap, dark, lowBandwidth]);
 
   // Push data whenever the filtered record set changes.
   useEffect(() => {
@@ -552,11 +873,18 @@ export function FloodMap({
   useEffect(() => {
     const instance = map.current;
     if (!instance || !ready) return;
-    instance.setFilter("selected", ["==", ["get", "id"], selectedId ?? "__none__"]);
-    if (!selectedId) return;
+    instance.setFilter("selected", selectedFilter(selectedId));
+    if (!selectedId) {
+      pannedTo.current = null;
+      return;
+    }
+    // Pan once per selection. A basemap swap or filter change re-runs this effect, and
+    // snapping the camera back to the selection each time fights the user's own panning.
+    if (pannedTo.current === selectedId) return;
     userMoved.current = true;
     const hit = points.find((p) => p.id === selectedId);
     if (!hit) return;
+    pannedTo.current = selectedId;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const target = { center: [hit.lon, hit.lat] as [number, number], zoom: Math.max(instance.getZoom(), 9) };
     if (reduce) instance.jumpTo(target);
@@ -655,6 +983,39 @@ export function FloodMap({
       </div>
 
       <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
+        {!lowBandwidth && (
+          <div
+            role="group"
+            aria-label="Basemap"
+            className="map-basemaps flex overflow-hidden rounded text-xs font-medium"
+            style={{ background: "var(--surface-raised)", border: "1px solid var(--line-strong)", boxShadow: "var(--shadow)" }}
+          >
+            {(
+              [
+                ["streets", "Streets", MapTrifold],
+                ["satellite", "Satellite", GlobeHemisphereWest],
+              ] as const
+            ).map(([value, label, Icon]) => {
+              const active = basemap === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setBasemap(value)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5"
+                  style={{
+                    background: active ? "var(--accent)" : "transparent",
+                    color: active ? "var(--accent-text)" : "var(--text)",
+                  }}
+                >
+                  <Icon size={15} weight={active ? "fill" : "regular"} aria-hidden /> {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {showKeyboardHint && (
           <div
             className="rounded px-2 py-1 text-[11px]"
@@ -681,12 +1042,20 @@ export function FloodMap({
             <span aria-hidden="true">{legendOpen ? "\u25BE" : "\u25B8"}</span> Map key
           </button>
           {legendOpen && (
-            <div id="map-key" className="space-y-0.5 px-2 pb-1.5">
-              <div>
-                <strong style={{ color: "var(--text)" }}>Thick ring</strong>: exact coordinates
+            <div id="map-key" className="space-y-1 px-2 pb-1.5">
+              <div className="flex items-start gap-1.5">
+                <span aria-hidden="true" className="map-key-halo" />
+                <span>
+                  <strong style={{ color: "var(--text)" }}>Soft circle</strong>: how precise the place is. A post
+                  naming only a city spreads about 8 km, a road about 600 m.
+                </span>
               </div>
               <div>
-                <strong style={{ color: "var(--text)" }}>Thin ring</strong>: place name inferred
+                <strong style={{ color: "var(--text)" }}>Thick ring, no circle</strong>: exact coordinates
+              </div>
+              <div>
+                <strong style={{ color: "var(--text)" }}>Number on a dot</strong>: posts at the same spot. Click to
+                list them.
               </div>
               <div>
                 <strong style={{ color: "var(--text)" }}>Dot size</strong>: confidence
