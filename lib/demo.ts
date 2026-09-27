@@ -36,12 +36,18 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * True only when the caller passes a `?demo=1` query string. Takes the string rather than
- * reading `window` itself so this file has no browser dependency and the caller decides when
- * it is safe to read `location.search` (after mount, to avoid a server/client render mismatch).
+ * On when `NEXT_PUBLIC_USE_FIXTURES=1` is set at build time (the documented stage/demo
+ * fallback — see docs/CONTRACT.md), or when the caller passes `?demo=1`. Either can be
+ * overridden per-visit with `?demo=0` to force the live network path. Takes the search string
+ * rather than reading `window` itself so this file has no browser dependency and the caller
+ * decides when it is safe to read `location.search` (after mount, to avoid a server/client
+ * render mismatch).
  */
 export function isDemoMode(search: string): boolean {
-  return new URLSearchParams(search).get("demo") === "1";
+  const param = new URLSearchParams(search).get("demo");
+  if (param === "1") return true;
+  if (param === "0") return false;
+  return process.env.NEXT_PUBLIC_USE_FIXTURES === "1";
 }
 
 export function demoEventProfile(): EventProfile {

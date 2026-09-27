@@ -150,7 +150,7 @@ export function AskPanel({
 
       {demo ? (
         <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
-          Ask needs the live service. Open the page without ?demo=1 to use it.
+          Ask needs the live service. Add ?demo=0 to the URL to use it.
         </p>
       ) : relevantRecords.length === 0 ? (
         <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>

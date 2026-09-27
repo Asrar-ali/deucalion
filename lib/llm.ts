@@ -1,9 +1,11 @@
 /**
  * LLM plumbing for text generation and image understanding.
  *
- * Text and structured output (narrate, plainLanguage): hackathon organizers' Gemini proxy.
- * Why not the SDK: the proxy is a simple POST endpoint; coupling to @google/genai ties us
- * to that specific transport forever, defeating the fallback to a self-hosted model.
+ * Text and structured output (narrate, plainLanguage): a Gemini-compatible proxy, configured
+ * via GEMINI_PROXY_BASE_URL. Why not the SDK: the proxy is a simple POST endpoint; coupling to
+ * @google/genai ties us to that specific transport forever, defeating the fallback to a
+ * self-hosted model. With no key or base URL configured, both functions below return null and
+ * callers fall back to their local/extractive path -- see generateText and generateJson.
  *
  * Images (describeImage, readImageText): OpenRouter's Gemini implementation.
  * Why OpenRouter: the proxy cannot parse parts arrays. Images go to a provider that can.
@@ -36,8 +38,8 @@ export function lastQuota(): number | null {
 }
 
 /**
- * Generate plain text via the hackathon organizers' proxy.
- * Returns null on any failure (no key, network error, quota exhausted, safety block).
+ * Generate plain text via the configured Gemini-compatible proxy.
+ * Returns null on any failure (no key, no base URL, network error, quota exhausted, safety block).
  * Retries at most once, only on 500 or network error.
  */
 export async function generateText(
@@ -46,9 +48,9 @@ export async function generateText(
 ): Promise<string | null> {
   if (circuitBreakerOpen) return null;
 
-  const baseUrl = process.env.GEMINI_PROXY_BASE_URL || "https://hackathon-api-new-152590733511.northamerica-northeast2.run.app/api/generate";
+  const baseUrl = process.env.GEMINI_PROXY_BASE_URL;
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey || !baseUrl) return null;
 
   const model = opts?.model || process.env.GEMINI_MODEL || "gemini-3-flash-preview";
   const timeoutMs = opts?.timeoutMs || 90_000;
@@ -126,7 +128,7 @@ export async function generateText(
 }
 
 /**
- * Generate structured JSON via the hackathon organizers' proxy.
+ * Generate structured JSON via the configured Gemini-compatible proxy.
  * Schema is passed as the response_schema field.
  * Returns null if generation fails OR the response cannot be parsed as valid JSON
  * matching the expected shape.
@@ -138,9 +140,9 @@ export async function generateJson<T>(
 ): Promise<T | null> {
   if (circuitBreakerOpen) return null;
 
-  const baseUrl = process.env.GEMINI_PROXY_BASE_URL || "https://hackathon-api-new-152590733511.northamerica-northeast2.run.app/api/generate";
+  const baseUrl = process.env.GEMINI_PROXY_BASE_URL;
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey || !baseUrl) return null;
 
   const model = opts?.model || process.env.GEMINI_MODEL || "gemini-3-flash-preview";
   const timeoutMs = opts?.timeoutMs || 90_000;

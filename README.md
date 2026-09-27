@@ -45,6 +45,9 @@ Environment variables: `OPENROUTER_API_KEY`, `SYSTEMONE_BASE_URL`, `SYSTEMONE_MO
 `GEMINI_API_KEY`, `GEMINI_PROXY_BASE_URL`, `GEMINI_MODEL`, `VISION_MODEL`, `JUDGE_ACCESS_CODE`.
 The rest in `.env.example` are optional tuning.
 
+No keys? Set `NEXT_PUBLIC_USE_FIXTURES=1` (or visit with `?demo=1`) to run entirely on bundled,
+pre-classified sample data — no network calls, nothing to configure. The hosted demo runs this way.
+
 Next: connecting to CE Strategies' flood models through the CSV and GeoJSON export.
 
 Detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)

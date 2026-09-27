@@ -63,7 +63,7 @@ export function Intake({
   onAdd?: (result: IngestResult) => void;
 }) {
   const DEMO_UPLOAD_MESSAGE =
-    "Demo mode is on, so nothing is sent to the classifier. Open the page without ?demo=1 to classify your own data.";
+    "Demo mode is on, so nothing is sent to the classifier. Add ?demo=0 to the URL to classify your own data.";
   const [pasted, setPasted] = useState("");
   const [working, setWorking] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
