@@ -45,6 +45,25 @@ export function knownPlaceNames(): string[] {
 }
 
 /**
+ * Countries behind a set of place names/aliases (typically `EventProfile.places`, the corpus's
+ * own dominant mentions). Lets a caller scope geoparsing to the countries the corpus is actually
+ * about, so a bare country/city name that also happens to be an English word or a retail brand
+ * ("India Pale Ale", "London Drugs", a sports team's home city) does not plant a pin on the other
+ * side of the world for a single-region corpus. A mixed, genuinely worldwide corpus passes no
+ * scope at all and keeps full recall.
+ */
+export function countriesOf(names: string[]): Set<string> {
+  const countries = new Set<string>();
+  const lower = new Set(names.map((n) => n.toLowerCase()));
+  for (const entry of PLACES) {
+    if (lower.has(entry.name.toLowerCase()) || entry.aliases.some((a) => lower.has(a))) {
+      countries.add(entry.country);
+    }
+  }
+  return countries;
+}
+
+/**
  * How useful a hit is as a map pin. Lower is more specific. A bridge or a road is the
  * report a responder can act on; "Alberta" is technically a place and operationally useless.
  */
@@ -146,6 +165,13 @@ export interface GeoparseInput {
   method?: GeoMethod;
   /** A place column from the CSV, treated as extra text to match against. */
   place?: string;
+  /**
+   * Restrict gazetteer hits to these countries when set (see `countriesOf`). A candidate whose
+   * only entries fall outside this set is dropped entirely rather than kept as a wrong-country
+   * guess -- an unplaced post is honest; a post pinned in the wrong country is not. Leave unset
+   * for a corpus that is genuinely worldwide (`EventProfile.mixed`).
+   */
+  localCountries?: Set<string>;
 }
 
 export function geoparse(input: GeoparseInput): PlaceHit[] {
@@ -181,10 +207,21 @@ export function geoparse(input: GeoparseInput): PlaceHit[] {
   }
   if (!matches.length) return [];
 
+  // Narrow each match to the corpus's own countries before anything else. A candidate with no
+  // entry in scope is dropped rather than kept under a foreign entry -- see `localCountries` on
+  // GeoparseInput for why (this is the fix for aliases like "boston" or "india" that are also
+  // common English words, planting single-region corpora worldwide).
+  const scoped = input.localCountries?.size
+    ? matches
+        .map((m) => ({ ...m, entries: m.entries.filter((e) => input.localCountries!.has(e.country)) }))
+        .filter((m) => m.entries.length > 0)
+    : matches;
+  if (!scoped.length) return [];
+
   // Context for disambiguation: unambiguous matches vote on province and country.
   const contextAdmins = new Set<string>();
   const contextCountries = new Set<string>();
-  for (const m of matches) {
+  for (const m of scoped) {
     if (m.entries.length === 1) {
       contextAdmins.add(m.entries[0].admin);
       contextCountries.add(m.entries[0].country);
@@ -194,7 +231,7 @@ export function geoparse(input: GeoparseInput): PlaceHit[] {
   const hits: PlaceHit[] = [];
   const seen = new Set<string>();
 
-  for (const m of matches) {
+  for (const m of scoped) {
     const { chosen, confidence, alternatives } = disambiguate(
       m.entries,
       contextAdmins,

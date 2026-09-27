@@ -12,7 +12,7 @@
 import { blockedMessage, checkBudget, recordDailySpend, spendCookie } from "../../../lib/budget";
 import { readImageMeta } from "../../../lib/exif";
 import { describeImage, readImageText } from "../../../lib/vision";
-import { geoparse } from "../../../lib/geoparse";
+import { countriesOf, geoparse } from "../../../lib/geoparse";
 import { HAZARD_LEXICON, prefilter, scoreRelevance } from "../../../lib/prefilter";
 import { buildQuestions, CONFIDENCE_GATE, deriveRelevance } from "../../../lib/questions";
 import {
@@ -137,6 +137,9 @@ export async function POST(request: Request) {
   });
 
   const questions = buildQuestions(profile);
+  // See countriesOf's doc comment: a mixed/worldwide corpus keeps unrestricted geoparsing, a
+  // single-region one is scoped to its own dominant places' countries.
+  const localCountries = profile.mixed ? undefined : countriesOf(profile.places);
   const concurrency = Math.max(1, Number(process.env.SYSTEMONE_CONCURRENCY ?? "32") || 32);
 
   const encoder = new TextEncoder();
@@ -217,7 +220,7 @@ export async function POST(request: Request) {
           const places =
             meta.lat != null && meta.lon != null
               ? geoparse({ text, lat: meta.lat, lon: meta.lon, method: "exif" })
-              : geoparse({ text });
+              : geoparse({ text, localCountries });
 
           const enriched: FloodRecord = {
             ...record,
@@ -351,6 +354,7 @@ export async function POST(request: Request) {
                     lat: provided?.lat,
                     lon: provided?.lon,
                     method: provided?.method,
+                    localCountries,
                   });
 
             const piiFired = labels.has_pii?.value === true;

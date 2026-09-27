@@ -31,7 +31,7 @@ import gazetteer from "../data/gazetteer.json";
 import { CATEGORY_META, CATEGORY_ORDER, count, nextRate, pct, usd, type RunProgress } from "../lib/display";
 import { demoEventProfile, isDemoMode, replayDemo } from "../lib/demo";
 import { runClassify } from "../lib/stream";
-import { geoparse } from "../lib/geoparse";
+import { countriesOf, geoparse } from "../lib/geoparse";
 import { toBriefMarkdown, toCsv, toGeoJSON, toSmsDigest } from "../lib/export";
 import { buildExtractiveBrief, clusterRecords } from "../lib/summarize";
 import { browserStore, funnelDelta, partitionByCache, storeResults } from "../lib/resultCache";
@@ -436,6 +436,12 @@ export function Deucalion() {
 
       const byId = new Map(result.records.map((r) => [r.id, r]));
 
+      // A single-region corpus (not `mixed`) scopes geoparsing to the countries its own dominant
+      // places are actually in, so a bare word that is also a common English word or a brand name
+      // ("India Pale Ale", "London Drugs") cannot plant a pin on the other side of the world. A
+      // genuinely worldwide corpus gets no scope and keeps full recall.
+      const localCountries = eventProfile.mixed ? undefined : countriesOf(eventProfile.places);
+
       // Posts classified earlier in this browser come straight from the local cache (free).
       // Each hit is rebuilt the way the route builds it (labels plus a fresh geoparse of the
       // row's own text and coordinates), and its funnel contribution is added client-side below,
@@ -449,7 +455,7 @@ export function Deucalion() {
           const provided = base.places.find((p) => p.method === "provided");
           return labels.has_place?.value === false && !provided
             ? []
-            : geoparse({ text: base.text, lat: provided?.lat, lon: provided?.lon, method: provided?.method });
+            : geoparse({ text: base.text, lat: provided?.lat, lon: provided?.lon, method: provided?.method, localCountries });
         });
         if (signal.aborted) return; // superseded or wiped while the cache was being read
         for (const [id, key] of part.keys) cacheKeys.set(id, key);
